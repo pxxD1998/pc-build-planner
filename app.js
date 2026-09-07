@@ -126,6 +126,7 @@
     const ram = build['6'];
     const cooler = build['10'];
     const aio = build['11'];
+    const gpu = build['12'];
     const pcCase = build['14'];
 
     const cpuSpecs = specsOf(cpu);
@@ -133,6 +134,7 @@
     const ramSpecs = specsOf(ram);
     const coolerSpecs = specsOf(cooler);
     const aioSpecs = specsOf(aio);
+    const gpuSpecs = specsOf(gpu);
     const caseSpecs = specsOf(pcCase);
 
     if (id === '4') {
@@ -182,7 +184,25 @@
       }
     }
 
+    if (id === '12') {
+      if (
+        Number.isFinite(Number(s.length_mm))
+        && Number.isFinite(Number(caseSpecs.max_gpu_length_mm))
+        && Number(s.length_mm) > Number(caseSpecs.max_gpu_length_mm)
+      ) {
+        reasons.push(`顯卡 ${s.length_mm}mm > 機殼限長 ${caseSpecs.max_gpu_length_mm}mm`);
+      }
+    }
+
     if (id === '14') {
+      if (
+        Number.isFinite(Number(gpuSpecs.length_mm))
+        && Number.isFinite(Number(s.max_gpu_length_mm))
+        && Number(gpuSpecs.length_mm) > Number(s.max_gpu_length_mm)
+      ) {
+        reasons.push(`顯卡 ${gpuSpecs.length_mm}mm > 機殼限長 ${s.max_gpu_length_mm}mm`);
+      }
+
       if (
         mbSpecs.form_factor
         && Array.isArray(s.motherboard_support)
@@ -241,6 +261,8 @@
       if (s.radiator_size_mm) labels.push(`${s.radiator_size_mm}mm 冷排`);
       if (s.fan_count) labels.push(`${s.fan_count} 扇`);
       if (Array.isArray(s.sockets) && s.sockets.length) labels.push(s.sockets.join('/'));
+    } else if (id === '12') {
+      if (s.length_mm) labels.push(`長 ${s.length_mm}mm`);
     } else if (id === '14') {
       if (Array.isArray(s.motherboard_support) && s.motherboard_support.length) {
         labels.push(`MB ${s.motherboard_support.join('/')}`);

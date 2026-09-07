@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CoolPC Mirror maskable icon">
+  <rect width="512" height="512" fill="#0a0d11"/>
+  <rect x="72" y="72" width="368" height="368" rx="80" fill="#11161c"/>
+  <path d="M164 170h184a38 38 0 0 1 38 38v96a38 38 0 0 1-38 38H164a38 38 0 0 1-38-38v-96a38 38 0 0 1 38-38Z" fill="none" stroke="#63c7f5" stroke-width="24"/>
+  <circle cx="190" cy="256" r="24" fill="#63c7f5"/>
+  <path d="M240 232h92M240 280h92" stroke="#eef3f8" stroke-width="20" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,147 @@
+name: Auto Sync PC Build Planner
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/auto-sync.yml"
+  schedule:
+    # Hourly source sync. This does NOT fetch CoolPC.
+    - cron: "47 * * * *"
+    # Four catalog refreshes per day. Each refresh performs one CoolPC GET.
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      refresh_data:
+        description: "Fetch one fresh CoolPC catalog before publishing"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pc-build-planner-auto-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check automation credential
+        id: auth
+        env:
+          AUTOMATION_TOKEN: ${{ secrets.PC_BUILD_AUTOMATION_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "$AUTOMATION_TOKEN" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PC_BUILD_AUTOMATION_TOKEN is not configured yet; automatic sync is intentionally skipped."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout public deployment repository
+        if: steps.auth.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: pxxD1998/pc-build-planner
+          ref: main
+          token: ${{ secrets.PC_BUILD_AUTOMATION_TOKEN }}
+          path: public-repo
+          fetch-depth: 1
+
+      - name: Checkout private source of truth
+        if: steps.auth.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: pxxD1998/_pxxD
+          ref: coolpc-mirror-v0.1.0
+          token: ${{ secrets.PC_BUILD_AUTOMATION_TOKEN }}
+          path: private-source
+          fetch-depth: 1
+
+      - name: Set up Python
+        if: steps.auth.outputs.enabled == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify private source tests
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: private-source/coolpc-mirror
+        run: python -m unittest discover -s tests -v
+
+      - name: Decide whether this run refreshes upstream data
+        if: steps.auth.outputs.enabled == 'true'
+        id: mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_EXPR: ${{ github.event.schedule }}
+          MANUAL_REFRESH: ${{ inputs.refresh_data }}
+        shell: bash
+        run: |
+          refresh=false
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPR" = "17 */6 * * *" ]; then
+            refresh=true
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$MANUAL_REFRESH" = "true" ]; then
+            refresh=true
+          fi
+          echo "refresh=$refresh" >> "$GITHUB_OUTPUT"
+          echo "Refresh upstream catalog: $refresh"
+
+      - name: Fetch and parse one fresh CoolPC catalog
+        if: steps.auth.outputs.enabled == 'true' && steps.mode.outputs.refresh == 'true'
+        working-directory: private-source/coolpc-mirror
+        run: python scraper.py
+
+      - name: Commit private generated data when product content changed
+        if: steps.auth.outputs.enabled == 'true' && steps.mode.outputs.refresh == 'true'
+        working-directory: private-source
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add coolpc-mirror/site/data/products.csv
+          if git diff --cached --quiet -- coolpc-mirror/site/data/products.csv; then
+            git restore --staged coolpc-mirror/site/data/products.csv || true
+            git restore -- \
+              coolpc-mirror/site/data/products.json \
+              coolpc-mirror/site/data/products.csv \
+              coolpc-mirror/site/data/products.js
+            echo "No private product-content changes"
+          else
+            git add \
+              coolpc-mirror/site/data/products.json \
+              coolpc-mirror/site/data/products.js \
+              coolpc-mirror/site/data/products.csv \
+              coolpc-mirror/site/data/history
+            git commit -m "data: refresh CoolPC products"
+            git push origin HEAD:coolpc-mirror-v0.1.0
+          fi
+
+      - name: Build sanitized public site
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: private-source/coolpc-mirror
+        shell: bash
+        run: python tools/build_public_site.py --output "${{ github.workspace }}/public-repo"
+
+      - name: Publish public main when output changed
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: public-repo
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Public site already up to date"
+            exit 0
+          fi
+
+          git commit -m "data: publish PC Build Planner"
+          git push origin HEAD:main

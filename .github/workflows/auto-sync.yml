@@ -88,9 +88,6 @@ jobs:
             refresh=true
           elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$MANUAL_REFRESH" = "true" ]; then
             refresh=true
-          elif [ "$EVENT_NAME" = "push" ]; then
-            # One-time end-to-end validation after configuring the repository secret.
-            refresh=true
           fi
           echo "refresh=$refresh" >> "$GITHUB_OUTPUT"
           echo "Refresh upstream catalog: $refresh"

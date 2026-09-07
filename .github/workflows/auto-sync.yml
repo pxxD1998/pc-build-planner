@@ -11,6 +11,9 @@ on:
     - cron: "47 * * * *"
     # Four catalog refreshes per day. Each refresh performs one CoolPC GET.
     - cron: "17 */6 * * *"
+    # Monthly repository-activity heartbeat. Public-repo scheduled workflows can
+    # be disabled by GitHub after 60 days without repository activity.
+    - cron: "23 3 1 * *"
   workflow_dispatch:
     inputs:
       refresh_data:
@@ -144,4 +147,17 @@ jobs:
           fi
 
           git commit -m "data: publish PC Build Planner"
+          git push origin HEAD:main
+
+      - name: Keep public scheduled workflow active
+        if: steps.auth.outputs.enabled == 'true' && github.event_name == 'schedule' && github.event.schedule == '23 3 1 * *'
+        working-directory: public-repo
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --ff-only origin main
+          printf 'Last scheduler heartbeat (UTC): %s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > .github/.scheduler-heartbeat
+          git add .github/.scheduler-heartbeat
+          git commit -m "chore: keep scheduled publishing active"
           git push origin HEAD:main

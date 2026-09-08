@@ -253,6 +253,20 @@
       if (s.module_count && s.module_capacity_gb) labels.push(`${s.module_capacity_gb}GB×${s.module_count}`);
       if (s.speed_mts) labels.push(`${s.speed_mts} MT/s`);
       if (s.cl) labels.push(`CL${s.cl}`);
+    } else if (id === '7') {
+      const capacity = Number(s.capacity_gb);
+      if (Number.isFinite(capacity) && capacity > 0) {
+        labels.push(capacity >= 1000 && capacity % 1000 === 0 ? `${capacity / 1000}TB` : `${capacity}GB`);
+      }
+      if (s.storage_form_factor === '2.5-inch') labels.push('2.5吋');
+      else if (s.storage_form_factor) labels.push(s.storage_form_factor);
+      if (s.interface === 'PCIe' && s.pcie_generation) labels.push(`PCIe Gen${s.pcie_generation}`);
+      else if (s.interface) labels.push(s.interface);
+      if (s.m2_size) labels.push(`M.2 ${s.m2_size}`);
+      if (s.nand_type) labels.push(s.nand_type);
+      if (s.sequential_read_mbps) labels.push(`讀 ${s.sequential_read_mbps} MB/s`);
+      if (s.sequential_write_mbps) labels.push(`寫 ${s.sequential_write_mbps} MB/s`);
+      if (s.dram_cache) labels.push('DRAM');
     } else if (id === '10') {
       if (s.cooler_height_mm) labels.push(`高 ${s.cooler_height_mm}mm`);
       if (s.fan_size_mm) labels.push(`${s.fan_size_mm}mm 扇`);

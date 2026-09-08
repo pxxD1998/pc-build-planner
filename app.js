@@ -267,6 +267,25 @@
       if (s.sequential_read_mbps) labels.push(`讀 ${s.sequential_read_mbps} MB/s`);
       if (s.sequential_write_mbps) labels.push(`寫 ${s.sequential_write_mbps} MB/s`);
       if (s.dram_cache) labels.push('DRAM');
+    } else if (id === '8') {
+      const capacity = Number(s.capacity_gb);
+      const driveClassLabels = {
+        desktop: '傳統碟',
+        surveillance: '監控',
+        nas: 'NAS',
+        enterprise: '企業',
+        laptop: '筆電',
+      };
+      if (Number.isFinite(capacity) && capacity > 0) {
+        labels.push(capacity >= 1000 && capacity % 1000 === 0 ? `${capacity / 1000}TB` : `${capacity}GB`);
+      }
+      if (s.storage_form_factor === '3.5-inch') labels.push('3.5吋');
+      else if (s.storage_form_factor === '2.5-inch') labels.push('2.5吋');
+      else if (s.storage_form_factor) labels.push(s.storage_form_factor);
+      if (s.interface) labels.push(s.interface);
+      if (s.drive_class) labels.push(driveClassLabels[s.drive_class] || s.drive_class);
+      if (s.rpm) labels.push(`${s.rpm} RPM`);
+      if (s.cache_mb) labels.push(`${s.cache_mb}MB 快取`);
     } else if (id === '10') {
       if (s.cooler_height_mm) labels.push(`高 ${s.cooler_height_mm}mm`);
       if (s.fan_size_mm) labels.push(`${s.fan_size_mm}mm 扇`);

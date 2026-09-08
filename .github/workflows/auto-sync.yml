@@ -48,7 +48,7 @@ jobs:
 
       - name: Checkout public deployment repository
         if: steps.auth.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: pxxD1998/pc-build-planner
           ref: main
@@ -58,7 +58,7 @@ jobs:
 
       - name: Checkout private source of truth
         if: steps.auth.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: pxxD1998/_pxxD
           ref: coolpc-mirror-v0.1.0
@@ -68,7 +68,7 @@ jobs:
 
       - name: Set up Python
         if: steps.auth.outputs.enabled == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

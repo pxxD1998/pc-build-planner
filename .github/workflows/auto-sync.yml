@@ -127,6 +127,15 @@ jobs:
             git push origin HEAD:coolpc-mirror-v0.1.0
           fi
 
+      - name: Verify structured snapshot consistency
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: private-source/coolpc-mirror
+        shell: bash
+        run: |
+          python tools/audit_ssd_specs.py --strict --show 20
+          python tools/audit_hdd_specs.py --strict --show 20
+          python tools/audit_psu_specs.py --strict --show 20
+
       - name: Build sanitized public site
         if: steps.auth.outputs.enabled == 'true'
         working-directory: private-source/coolpc-mirror

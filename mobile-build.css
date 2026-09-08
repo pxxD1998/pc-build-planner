@@ -4,6 +4,34 @@
   display:none;
 }
 
+/* Keep desktop catalog filters compact instead of stretching to tall grid rows. */
+@media (min-width: 841px) {
+  .toolbar {
+    align-items:center;
+    padding:10px 12px;
+  }
+
+  .toolbar > input,
+  .toolbar > select,
+  .toolbar > button {
+    height:42px;
+    min-height:42px;
+    padding-top:0;
+    padding-bottom:0;
+  }
+}
+
+/* Keep the catalog filter toolbar inside the center panel on medium/desktop widths. */
+@media (min-width: 841px) and (max-width: 1700px) {
+  .toolbar {
+    grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  }
+
+  .toolbar #search {
+    grid-column:span 2;
+  }
+}
+
 @media (max-width: 840px) {
   body {
     padding-bottom:calc(78px + env(safe-area-inset-bottom));

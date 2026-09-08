@@ -109,6 +109,22 @@
 
   <script src="data/products.js"></script>
   <script src="app.js"></script>
+  <script>
+    document.addEventListener('click', event => {
+      const row = event.target.closest('#rows tr');
+      if (!row || event.target.closest('.row-add')) return;
+
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
+
+      for (let index = 0; index < selection.rangeCount; index += 1) {
+        if (selection.getRangeAt(index).intersectsNode(row)) {
+          event.stopImmediatePropagation();
+          return;
+        }
+      }
+    }, true);
+  </script>
   <script src="back-to-top.js"></script>
   <script src="mobile-build.js"></script>
 </body>

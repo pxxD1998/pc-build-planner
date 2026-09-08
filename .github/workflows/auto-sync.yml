@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+    # Workflow maintenance pushes also perform an immediate no-refresh source sync.
     paths:
       - ".github/workflows/auto-sync.yml"
   schedule:

@@ -1,0 +1,70 @@
+/* Build Model v2: multi-select storage quantities without changing the base layout. */
+th:nth-child(5), td:nth-child(5) { width: 112px; }
+
+.row-add {
+  width: 100%;
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+.build-multi-badge {
+  padding: 2px 5px;
+  border: 1px solid rgba(99,199,245,.30);
+  border-radius: 999px;
+  color: #9eddf8;
+  background: rgba(99,199,245,.08);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.build-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d1319;
+}
+
+.build-qty button {
+  width: 25px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #344250;
+  border-radius: 6px;
+  background: #18212a;
+  color: #d7e1ea;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.build-qty button:hover:not(:disabled) {
+  background: #202c37;
+  border-color: #4b6072;
+  filter: none;
+}
+
+.build-qty button:disabled {
+  cursor: default;
+  opacity: .35;
+}
+
+.build-qty span {
+  min-width: 32px;
+  text-align: center;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 840px) {
+  th:nth-child(5), td:nth-child(5) { width: 104px; }
+  .build-qty button { width: 30px; height: 28px; }
+  .build-qty span { min-width: 36px; }
+}

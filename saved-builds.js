@@ -4,6 +4,7 @@
   const namespace = document.title === 'PC Build Planner' ? 'pc-build-planner' : 'coolpc-mirror';
   const BUILD_KEY = `${namespace}-build`;
   const SAVED_BUILDS_KEY = `${namespace}-saved-builds-v1`;
+  const BUILD_SCHEMA_VERSION = 2;
   const money = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
   const $ = (selector) => document.querySelector(selector);
 
@@ -14,6 +15,25 @@
     } catch {
       return {};
     }
+  }
+
+  function flattenBuild(build) {
+    const rows = [];
+    if (!build || typeof build !== 'object' || Array.isArray(build)) return rows;
+
+    for (const [categoryId, rawValue] of Object.entries(build)) {
+      const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+      for (const value of values) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+        const product = value.product && typeof value.product === 'object' && !Array.isArray(value.product)
+          ? value.product
+          : value;
+        const qtyRaw = value.product ? Number(value.qty) : 1;
+        const qty = Number.isInteger(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+        rows.push({ categoryId, product, qty });
+      }
+    }
+    return rows;
   }
 
   function readSavedBuilds() {
@@ -44,14 +64,15 @@
   }
 
   function currentEntries() {
-    return Object.values(readCurrentBuild()).filter(item => item && typeof item === 'object');
+    return flattenBuild(readCurrentBuild());
   }
 
   function buildSummary(savedBuild) {
-    const entries = Object.values(savedBuild || {}).filter(item => item && typeof item === 'object');
+    const entries = flattenBuild(savedBuild);
     return {
-      count: entries.length,
-      total: entries.reduce((sum, item) => sum + Number(item.price || 0), 0),
+      lines: entries.length,
+      units: entries.reduce((sum, entry) => sum + entry.qty, 0),
+      total: entries.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.qty, 0),
     };
   }
 
@@ -85,7 +106,7 @@
   function saveCurrentBuildSnapshot() {
     const build = readCurrentBuild();
     const summary = buildSummary(build);
-    if (!summary.count) {
+    if (!summary.lines) {
       alert('目前配單是空的，沒有可暫存的內容。');
       return;
     }
@@ -95,6 +116,7 @@
       id: makeSnapshotId(),
       name: defaultSnapshotName(savedAt),
       saved_at: savedAt,
+      schema_version: BUILD_SCHEMA_VERSION,
       build: JSON.parse(JSON.stringify(build)),
     };
 
@@ -111,10 +133,7 @@
       const confirmed = confirm('清空全部會清空「目前配單」，已暫存的配單不受影響。確定要繼續嗎？');
       if (!confirmed) return;
     }
-
-    try {
-      localStorage.removeItem(BUILD_KEY);
-    } catch {}
+    try { localStorage.removeItem(BUILD_KEY); } catch {}
     location.reload();
   }
 
@@ -125,9 +144,8 @@
       if (!confirmed) return;
     }
 
-    try {
-      localStorage.setItem(BUILD_KEY, JSON.stringify(snapshot.build));
-    } catch {
+    try { localStorage.setItem(BUILD_KEY, JSON.stringify(snapshot.build)); }
+    catch {
       alert('載入配單失敗：瀏覽器儲存空間不可用。');
       return;
     }
@@ -138,12 +156,10 @@
     const savedBuilds = readSavedBuilds();
     const snapshot = savedBuilds.find(item => item.id === snapshotId);
     if (!snapshot) return;
-
     const nextName = prompt('配單名稱', snapshot.name || '未命名配單');
     if (nextName == null) return;
     const trimmed = nextName.trim();
     if (!trimmed) return;
-
     snapshot.name = trimmed.slice(0, 80);
     if (writeSavedBuilds(savedBuilds)) renderSavedBuilds();
   }
@@ -153,7 +169,6 @@
     const snapshot = savedBuilds.find(item => item.id === snapshotId);
     if (!snapshot) return;
     if (!confirm(`刪除「${snapshot.name || '未命名配單'}」？`)) return;
-
     const next = savedBuilds.filter(item => item.id !== snapshotId);
     if (writeSavedBuilds(next)) renderSavedBuilds();
   }
@@ -191,15 +206,13 @@
 
       const copy = document.createElement('div');
       copy.className = 'saved-build-copy';
-
       const name = document.createElement('strong');
       name.className = 'saved-build-name';
       name.textContent = snapshot.name || '未命名配單';
-
       const meta = document.createElement('div');
       meta.className = 'saved-build-meta';
-      meta.textContent = `${summary.count} 項 · ${money.format(summary.total)} · ${formatTimestamp(snapshot.saved_at)}`;
-
+      const quantityText = summary.lines === summary.units ? `${summary.lines} 項` : `${summary.lines} 項 · ${summary.units} 件`;
+      meta.textContent = `${quantityText} · ${money.format(summary.total)} · ${formatTimestamp(snapshot.saved_at)}`;
       copy.append(name, meta);
 
       const actions = document.createElement('div');
@@ -227,9 +240,7 @@
   $('#newBuild')?.addEventListener('click', startNewBuild);
 
   const buildItems = $('#buildItems');
-  if (buildItems) {
-    new MutationObserver(updateCurrentBuildButtons).observe(buildItems, { childList: true, subtree: true });
-  }
+  if (buildItems) new MutationObserver(updateCurrentBuildButtons).observe(buildItems, { childList: true, subtree: true });
 
   renderSavedBuilds();
   updateCurrentBuildButtons();

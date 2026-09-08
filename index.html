@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="back-to-top.css" />
   <link rel="stylesheet" href="mobile-build.css" />
+  <link rel="stylesheet" href="saved-builds.css" />
 </head>
 <body>
   <header class="topbar">
@@ -99,6 +100,14 @@
         <div><span>總計</span><small id="totalItems">0 項</small></div>
         <strong id="totalPrice">$0</strong>
       </div>
+      <div class="build-manage-actions">
+        <button id="saveBuildSnapshot" type="button">暫存配單</button>
+        <button id="newBuild" type="button" class="secondary">開新配單</button>
+      </div>
+      <details class="saved-builds" id="savedBuildsPanel">
+        <summary>我的暫存配單 <span class="saved-build-count" id="savedBuildCount">(0)</span></summary>
+        <div class="saved-build-items" id="savedBuildItems"></div>
+      </details>
       <div class="build-actions">
         <button id="copyBuild">複製文字</button>
         <button id="exportBuild" class="secondary">匯出 JSON</button>
@@ -109,6 +118,7 @@
 
   <script src="data/products.js"></script>
   <script src="app.js"></script>
+  <script src="saved-builds.js"></script>
   <script>
     document.addEventListener('click', event => {
       const row = event.target.closest('#rows tr');

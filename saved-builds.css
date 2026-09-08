@@ -1,0 +1,106 @@
+.build-manage-actions {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding:12px 12px 0;
+}
+
+.build-manage-actions button:disabled {
+  cursor:not-allowed;
+  opacity:.45;
+  filter:none;
+}
+
+.saved-builds {
+  margin:10px 12px 0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#0d1319;
+  overflow:hidden;
+}
+
+.saved-builds > summary {
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:10px 11px;
+  color:#cbd5df;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+  user-select:none;
+  list-style:none;
+}
+
+.saved-builds > summary::-webkit-details-marker { display:none; }
+.saved-builds > summary::before {
+  content:'▸';
+  color:var(--muted2);
+  font-size:10px;
+  transition:transform .12s ease;
+}
+.saved-builds[open] > summary::before { transform:rotate(90deg); }
+.saved-builds > summary:hover { background:#141c24; }
+.saved-build-count { color:var(--accent); font-size:10px; }
+
+.saved-build-items {
+  max-height:260px;
+  overflow:auto;
+  border-top:1px solid var(--line-soft);
+  scrollbar-width:thin;
+}
+
+.saved-build-empty {
+  padding:20px 12px;
+  color:var(--muted2);
+  font-size:10px;
+  text-align:center;
+}
+
+.saved-build-card {
+  padding:10px;
+  border-bottom:1px solid var(--line-soft);
+}
+.saved-build-card:last-child { border-bottom:0; }
+.saved-build-copy { min-width:0; }
+.saved-build-name {
+  display:block;
+  color:#e2e9f0;
+  font-size:11px;
+  line-height:1.35;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.saved-build-meta {
+  margin-top:3px;
+  color:var(--muted2);
+  font-size:9px;
+  line-height:1.35;
+}
+.saved-build-card-actions {
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  gap:6px;
+  margin-top:8px;
+}
+.saved-build-card-actions button {
+  min-height:30px;
+  padding:6px 8px;
+  font-size:9px;
+}
+.saved-build-load {
+  background:#183344;
+  color:#cbefff;
+  border-color:#28506a;
+}
+.saved-build-load:hover {
+  background:#1d4055;
+  filter:none;
+}
+
+@media (max-width: 650px) {
+  .build-manage-actions { grid-template-columns:1fr 1fr; }
+  .saved-build-items { max-height:320px; }
+}

@@ -276,6 +276,26 @@
       else if (s.front_usb_c) labels.push('Type-C');
       if (s.included_fans) labels.push(`內建 ${s.included_fans} 扇`);
       if (s.max_fans) labels.push(`最多 ${s.max_fans} 扇`);
+    } else if (id === '15') {
+      const efficiencyLabels = {
+        bronze: '銅牌',
+        silver: '銀牌',
+        gold: '金牌',
+        platinum: '白金',
+        titanium: '鈦金',
+      };
+      const modularityLabels = {
+        full: '全模組',
+        semi: '半模組',
+        non: '直出線',
+      };
+      if (s.wattage_w) labels.push(`${s.wattage_w}W`);
+      if (s.efficiency_tier) labels.push(efficiencyLabels[s.efficiency_tier] || s.efficiency_tier);
+      if (s.modularity) labels.push(modularityLabels[s.modularity] || s.modularity);
+      if (s.atx_version) labels.push(`ATX ${s.atx_version}`);
+      if (s.pcie_power_version) labels.push(`PCIe ${s.pcie_power_version}`);
+      if (s.psu_form_factor) labels.push(s.psu_form_factor);
+      if (s.requires_220v) labels.push('限 220V');
     }
 
     return labels;

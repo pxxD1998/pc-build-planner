@@ -108,7 +108,7 @@
 
   function startNewBuild() {
     if (currentEntries().length) {
-      const confirmed = confirm('開新配單會清空「目前配單」，已暫存的配單不受影響。確定要繼續嗎？');
+      const confirmed = confirm('清空全部會清空「目前配單」，已暫存的配單不受影響。確定要繼續嗎？');
       if (!confirmed) return;
     }
 

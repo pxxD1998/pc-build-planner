@@ -142,6 +142,23 @@ jobs:
         shell: bash
         run: python tools/build_public_site.py --output "${{ github.workspace }}/public-repo"
 
+      - name: Verify public Build Model v2 assets
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: public-repo
+        shell: bash
+        run: |
+          test -f build-model-v2.css
+          grep -Fq 'href="build-model-v2.css"' index.html
+          grep -Fq 'const BUILD_SCHEMA_VERSION = 2;' app.js
+          grep -Fq "new Set(['7', '8'])" app.js
+          grep -Fq "'pc-build-planner-build'" app.js
+          grep -Fq 'data-qty-action="plus"' app.js
+          grep -Fq 'schema_version: BUILD_SCHEMA_VERSION' saved-builds.js
+          if grep -Fq "'coolpc-mirror-build'" app.js; then
+            echo "Private build namespace leaked into public app.js" >&2
+            exit 1
+          fi
+
       - name: Publish public main when output changed
         if: steps.auth.outputs.enabled == 'true'
         working-directory: public-repo

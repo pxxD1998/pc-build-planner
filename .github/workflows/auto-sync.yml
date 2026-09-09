@@ -132,6 +132,7 @@ jobs:
         working-directory: private-source/coolpc-mirror
         shell: bash
         run: |
+          python tools/audit_motherboard_specs.py --show 20
           python tools/audit_ssd_specs.py --strict --show 20
           python tools/audit_hdd_specs.py --strict --show 20
           python tools/audit_psu_specs.py --strict --show 20
@@ -172,7 +173,7 @@ jobs:
           grep -Fq 'drive_bays_combo_2_5_3_5' storage-fit.js
           grep -Fq '未列資料視為未知，不當成 0' storage-fit.js
           grep -Fq '主機板 SATA / M.2 埠數與共享通道尚未檢查' storage-fit.js
-          grep -Fq '"specs_version":7' data/products.js
+          grep -Fq '"specs_version":8' data/products.js
 
       - name: Publish public main when output changed
         if: steps.auth.outputs.enabled == 'true'

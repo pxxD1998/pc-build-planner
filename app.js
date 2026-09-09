@@ -265,6 +265,11 @@
       if (s.form_factor) labels.push(s.form_factor);
       if (s.memory_type) labels.push(s.memory_type);
       if (s.wifi) labels.push('Wi-Fi');
+      const storage = s.motherboard_storage;
+      if (storage && storage.state === 'known') {
+        if (Number.isInteger(storage.m2_slot_count) && storage.m2_slot_count >= 0) labels.push(`原廠 M.2 ×${storage.m2_slot_count}`);
+        if (Number.isInteger(storage.sata_port_count) && storage.sata_port_count >= 0) labels.push(`原廠 SATA ×${storage.sata_port_count}`);
+      }
     } else if (id === '6') {
       if (s.memory_type) labels.push(s.memory_type);
       if (s.capacity_gb) labels.push(`${s.capacity_gb}GB`);

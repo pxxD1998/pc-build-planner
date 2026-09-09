@@ -161,19 +161,53 @@ jobs:
             exit 1
           fi
 
-      - name: Verify public CASE drive-fit assets
+      - name: Verify public storage-fit assets
         if: steps.auth.outputs.enabled == 'true'
         working-directory: public-repo
         shell: bash
         run: |
+          set -euo pipefail
           test -f storage-fit.css
           test -f storage-fit.js
           grep -Fq 'href="storage-fit.css"' index.html
           grep -Fq 'src="storage-fit.js"' index.html
           grep -Fq 'drive_bays_combo_2_5_3_5' storage-fit.js
           grep -Fq '未列資料視為未知，不當成 0' storage-fit.js
-          grep -Fq '主機板 SATA / M.2 埠數與共享通道尚未檢查' storage-fit.js
+          grep -Fq '主機板儲存連接' storage-fit.js
+          grep -Fq '原廠資料未涵蓋' storage-fit.js
+          grep -Fq '未涵蓋視為未知，不當成 0' storage-fit.js
+          grep -Fq '原廠 M.2 ×' app.js
+          grep -Fq '原廠 SATA ×' app.js
           grep -Fq '"specs_version":8' data/products.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          raw = Path('data/products.js').read_text(encoding='utf-8')
+          prefix = 'window.COOLPC_DATA = '
+          assert raw.startswith(prefix)
+          payload = json.loads(raw[len(prefix):].removesuffix(';\n'))
+          boards = [p for p in payload['products'] if str(p.get('category_id')) == '5']
+          known = []
+          unknown = []
+          for board in boards:
+              storage = (board.get('specs') or {}).get('motherboard_storage')
+              assert isinstance(storage, dict), board.get('name')
+              if storage.get('state') == 'known':
+                  assert isinstance(storage.get('m2_slot_count'), int)
+                  assert isinstance(storage.get('sata_port_count'), int)
+                  known.append(board)
+              elif storage.get('state') == 'unknown':
+                  assert 'm2_slot_count' not in storage
+                  assert 'sata_port_count' not in storage
+                  unknown.append(board)
+              else:
+                  raise AssertionError(storage)
+          serialized = json.dumps(payload, ensure_ascii=False)
+          for forbidden in ('manufacturer_url', 'retrieved_at', 'adapter_version', 'provenance', 'source_value', 'raw_text'):
+              assert forbidden not in serialized, forbidden
+          print({'motherboards': len(boards), 'known': len(known), 'unknown': len(unknown)})
+          PY
 
       - name: Publish public main when output changed
         if: steps.auth.outputs.enabled == 'true'

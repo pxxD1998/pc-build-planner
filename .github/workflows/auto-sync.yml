@@ -5,6 +5,7 @@ on:
     branches:
       - main
     # Workflow maintenance pushes also perform an immediate no-refresh source sync.
+    # Rollout trigger 2026-09-09: publish accepted third ASRock cohort without a CoolPC refresh.
     paths:
       - ".github/workflows/auto-sync.yml"
   schedule:

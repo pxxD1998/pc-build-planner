@@ -64,32 +64,54 @@
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function priceText(value) { return money.format(Number(value || 0)).replace(/^TWD\s*/, 'NT$'); }
 
-  // Evidence-bounded reference-image pilot. These are the same family/reference
-  // images exposed by CoolPC's own category overview, not a claim that every
-  // mapped image is a unique photograph of the exact retail variant.
+  // Evidence-bounded reference-image registry. Rules are ordered specific ->
+  // generic. These are reference/family images already accepted from CoolPC's
+  // category overview, not exact retail-variant identity evidence. Adding a
+  // rule is a data edit; catalog rendering logic stays generic.
+  const REFERENCE_IMAGE_RULES = Object.freeze([
+    { id: 'asus-prime-b860m-a-csm', category_id: '5', all: ['PRIME\\s+B860M-A-CSM'], url: 'https://coolpc.coolpc.com.tw/eval/5/asusb860macsm.jpg' },
+    { id: 'umax-ddr5-notebook', category_id: '6', all: ['DDR5', 'UMAX', '\\bNB\\b'], url: 'https://coolpc.coolpc.com.tw/eval/6/umaxnbddr5.jpg' },
+    { id: 'umax-ddr5-dual-heatspreader', category_id: '6', all: ['DDR5', 'UMAX', '(?:雙通|\\*2|×2)', '散熱片'], url: 'https://coolpc.coolpc.com.tw/eval/6/umaxddr5x2xmp.jpg' },
+    { id: 'umax-ddr5', category_id: '6', all: ['DDR5', 'UMAX'], url: 'https://coolpc.coolpc.com.tw/eval/6/umaxddr5xmp.jpg' },
+    { id: 'adata-lancerblade-ddr5', category_id: '6', all: ['DDR5', '(?:威剛|ADATA)', 'LancerBlade'], url: 'https://coolpc.coolpc.com.tw/eval/6/xpglancerbladed5s.jpg' },
+    { id: 'adata-ddr5', category_id: '6', all: ['DDR5', '(?:威剛|ADATA)'], url: 'https://coolpc.coolpc.com.tw/eval/6/adatad5.jpg' },
+    { id: 'kingston-fury-ddr5', category_id: '6', all: ['DDR5', '(?:金士頓|Kingston)', '(?:FURY|獸獵者)'], url: 'https://coolpc.coolpc.com.tw/eval/6/kingstond5fury.jpg' },
+    { id: 'kingston-ddr5', category_id: '6', all: ['DDR5', '(?:金士頓|Kingston)'], url: 'https://coolpc.coolpc.com.tw/eval/6/kingstonddr5.jpg' },
+    { id: 'klevv-ddr5', category_id: '6', all: ['DDR5', '(?:KLEVV|科賦)'], url: 'https://coolpc.coolpc.com.tw/eval/6/klevvddr5.jpg' },
+    { id: 'micron-crucial-ddr5', category_id: '6', all: ['DDR5', '(?:美光|Micron|Crucial)'], url: 'https://coolpc.coolpc.com.tw/eval/6/micronddr5.jpg' },
+  ]);
+
+  function compileReferenceImageRules(value) {
+    if (!Array.isArray(value)) return [];
+    const compiled = [];
+    for (const rule of value) {
+      if (!rule || typeof rule !== 'object') continue;
+      const categoryId = String(rule.category_id || '');
+      const url = String(rule.url || '');
+      const patterns = Array.isArray(rule.all) ? rule.all : [];
+      if (!categoryId || !url || !patterns.length) continue;
+      try {
+        compiled.push({
+          id: String(rule.id || ''),
+          categoryId,
+          url,
+          tests: patterns.map(pattern => new RegExp(String(pattern), 'i')),
+        });
+      } catch (_) {
+        // A malformed optional image rule must never break the catalog.
+      }
+    }
+    return compiled;
+  }
+
+  const referenceImageRules = compileReferenceImageRules(REFERENCE_IMAGE_RULES);
   function referenceImageFor(p) {
     const categoryId = String(p?.category_id ?? '');
     const name = String(p?.name || '');
-    if (categoryId === '5' && /PRIME\s+B860M-A-CSM/i.test(name)) {
-      return 'https://coolpc.coolpc.com.tw/eval/5/asusb860macsm.jpg';
-    }
-    if (categoryId !== '6' || !/DDR5/i.test(name)) return '';
-    if (/UMAX/i.test(name)) {
-      if (/\bNB\b/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/umaxnbddr5.jpg';
-      if (/(?:雙通|\*2|×2)/i.test(name) && /散熱片/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/umaxddr5x2xmp.jpg';
-      return 'https://coolpc.coolpc.com.tw/eval/6/umaxddr5xmp.jpg';
-    }
-    if (/(?:威剛|ADATA)/i.test(name)) {
-      if (/LancerBlade/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/xpglancerbladed5s.jpg';
-      return 'https://coolpc.coolpc.com.tw/eval/6/adatad5.jpg';
-    }
-    if (/(?:金士頓|Kingston)/i.test(name)) {
-      if (/(?:FURY|獸獵者)/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/kingstond5fury.jpg';
-      return 'https://coolpc.coolpc.com.tw/eval/6/kingstonddr5.jpg';
-    }
-    if (/(?:KLEVV|科賦)/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/klevvddr5.jpg';
-    if (/(?:美光|Micron|Crucial)/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/micronddr5.jpg';
-    return '';
+    const rule = referenceImageRules.find(candidate => (
+      candidate.categoryId === categoryId && candidate.tests.every(test => test.test(name))
+    ));
+    return rule?.url || '';
   }
 
   function normalizedPriceSeries(change, series) {

@@ -5,7 +5,7 @@ on:
     branches:
       - main
     # Workflow maintenance pushes also perform an immediate no-refresh source sync.
-    # Rollout trigger 2026-09-09: publish accepted ASUS storage pair without a CoolPC refresh.
+    # Archive verification 2026-09-10: verify refresh-resilient storage regression without a CoolPC refresh.
     paths:
       - ".github/workflows/auto-sync.yml"
   schedule:

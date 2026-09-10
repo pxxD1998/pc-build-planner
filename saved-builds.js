@@ -5,6 +5,7 @@
   const BUILD_KEY = `${namespace}-build`;
   const SAVED_BUILDS_KEY = `${namespace}-saved-builds-v1`;
   const BUILD_SCHEMA_VERSION = 2;
+  const MULTI_SELECT_CATEGORIES = new Set(['7', '8']);
   const money = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
   const $ = (selector) => document.querySelector(selector);
 
@@ -23,6 +24,7 @@
 
     for (const [categoryId, rawValue] of Object.entries(build)) {
       const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+      const entries = [];
       for (const value of values) {
         if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
         const product = value.product && typeof value.product === 'object' && !Array.isArray(value.product)
@@ -30,8 +32,18 @@
           : value;
         const qtyRaw = value.product ? Number(value.qty) : 1;
         const qty = Number.isInteger(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
-        rows.push({ categoryId, product, qty });
+        entries.push({ product, qty });
       }
+
+      const multi = MULTI_SELECT_CATEGORIES.has(String(categoryId));
+      entries.forEach((entry, index) => {
+        rows.push({
+          categoryId,
+          product: entry.product,
+          qty: multi ? entry.qty : 1,
+          candidate: !multi && index > 0,
+        });
+      });
     }
     return rows;
   }
@@ -69,10 +81,12 @@
 
   function buildSummary(savedBuild) {
     const entries = flattenBuild(savedBuild);
+    const configured = entries.filter(entry => !entry.candidate);
     return {
-      lines: entries.length,
-      units: entries.reduce((sum, entry) => sum + entry.qty, 0),
-      total: entries.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.qty, 0),
+      lines: configured.length,
+      candidates: entries.length - configured.length,
+      units: configured.reduce((sum, entry) => sum + entry.qty, 0),
+      total: configured.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.qty, 0),
     };
   }
 
@@ -212,7 +226,8 @@
       const meta = document.createElement('div');
       meta.className = 'saved-build-meta';
       const quantityText = summary.lines === summary.units ? `${summary.lines} 項` : `${summary.lines} 項 · ${summary.units} 件`;
-      meta.textContent = `${quantityText} · ${money.format(summary.total)} · ${formatTimestamp(snapshot.saved_at)}`;
+      const candidateText = summary.candidates ? ` · ${summary.candidates} 候選` : '';
+      meta.textContent = `${quantityText}${candidateText} · ${money.format(summary.total)} · ${formatTimestamp(snapshot.saved_at)}`;
       copy.append(name, meta);
 
       const actions = document.createElement('div');

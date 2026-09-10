@@ -90,14 +90,21 @@
       const entries = rawEntries.map(value => normalizeEntry(value, id)).filter(Boolean);
       if (!entries.length) continue;
 
+      const multi = MULTI_SELECT_CATEGORIES.has(id);
       const merged = [];
       for (const entry of entries) {
         const key = productKey(entry.product);
         const existing = merged.find(item => productKey(item.product) === key);
-        if (existing) existing.qty = Math.min(999, existing.qty + entry.qty);
-        else merged.push(entry);
+        if (existing) {
+          existing.qty = multi ? Math.min(999, existing.qty + entry.qty) : 1;
+        } else {
+          merged.push({ product: entry.product, qty: multi ? entry.qty : 1 });
+        }
       }
-      normalized[id] = MULTI_SELECT_CATEGORIES.has(id) ? merged : merged.slice(0, 1);
+      // For normal component categories, entry 0 is the active build choice and
+      // later entries are comparison candidates. Storage categories remain true
+      // multi-select parts where every entry contributes to the configured build.
+      normalized[id] = merged;
     }
     return normalized;
   }
@@ -133,10 +140,22 @@
     return entry ? entry.qty : 0;
   }
 
-  function flattenedBuildEntries() {
+  function isActiveProduct(id, product) {
+    const categoryId = String(id);
+    if (MULTI_SELECT_CATEGORIES.has(categoryId)) return selectedQuantity(categoryId, product) > 0;
+    const active = selectedProduct(categoryId);
+    return Boolean(active && productKey(active) === productKey(product));
+  }
+
+  function flattenedBuildEntries({ configuredOnly = false } = {}) {
     const rows = [];
     for (const id of categoryOrder) {
-      for (const entry of entriesForCategory(id)) rows.push({ id, product: entry.product, qty: entry.qty });
+      const multi = MULTI_SELECT_CATEGORIES.has(id);
+      entriesForCategory(id).forEach((entry, index) => {
+        const candidate = !multi && index > 0;
+        if (configuredOnly && candidate) return;
+        rows.push({ id, product: entry.product, qty: multi ? entry.qty : 1, candidate, active: !candidate });
+      });
     }
     return rows;
   }
@@ -144,16 +163,26 @@
   function addProduct(product) {
     const id = String(product?.category_id ?? '');
     if (!id) return;
-    if (!MULTI_SELECT_CATEGORIES.has(id)) {
-      build[id] = [{ product, qty: 1 }];
-      return;
-    }
-
     const entries = entriesForCategory(id);
     const key = productKey(product);
     const existing = entries.find(item => productKey(item.product) === key);
+
+    if (!MULTI_SELECT_CATEGORIES.has(id)) {
+      if (!existing) build[id] = [...entries, { product, qty: 1 }];
+      return;
+    }
+
     if (existing) existing.qty = Math.min(999, existing.qty + 1);
     else build[id] = [...entries, { product, qty: 1 }];
+  }
+
+  function setActiveProduct(id, key) {
+    const categoryId = String(id);
+    if (MULTI_SELECT_CATEGORIES.has(categoryId)) return;
+    const entries = entriesForCategory(categoryId);
+    const index = entries.findIndex(item => productKey(item.product) === key);
+    if (index <= 0) return;
+    build[categoryId] = [entries[index], ...entries.slice(0, index), ...entries.slice(index + 1)];
   }
 
   function removeProduct(id, key) {
@@ -473,11 +502,14 @@
     $('#rows').innerHTML = list.map(p => {
       const qty = selectedQuantity(activeCategory, p);
       const selected = qty > 0;
+      const active = selected && isActiveProduct(activeCategory, p);
       const compatibility = compatibilityFor(p);
       const conflict = !compatibility.compatible;
-      const classes = [selected ? 'selected' : '', conflict ? 'incompatible' : ''].filter(Boolean).join(' ');
+      const classes = [selected ? 'selected' : '', active && !multi ? 'active-choice' : '', selected && !active ? 'candidate-choice' : '', conflict ? 'incompatible' : ''].filter(Boolean).join(' ');
       const conflictBadge = conflict ? `<span class="compat-badge" title="${escapeAttr(compatibility.reasons.join('；'))}">不相容</span>` : '';
-      const buttonText = multi ? (selected ? `+1 · 已選 ×${qty}` : '+ 加入') : (selected ? '✓ 已選' : '選擇');
+      const buttonText = multi
+        ? (selected ? `+1 · 已選 ×${qty}` : '+ 加入')
+        : (active ? '★ 目前使用' : selected ? '設為主選' : '+ 加入候選');
       return `<tr class="${classes}" data-key="${escapeAttr(productKey(p))}">
         <td class="brand">${escapeHtml(p.brand || '—')}</td>
         <td class="name">
@@ -487,7 +519,7 @@
         </td>
         <td class="sub">${escapeHtml(p.subcategory || '其他')}</td>
         <td class="price">${money.format(p.price)}</td>
-        <td><button class="row-add${selected ? ' is-selected' : ''}" type="button" aria-pressed="${selected ? 'true' : 'false'}">${escapeHtml(buttonText)}</button></td>
+        <td><button class="row-add${selected ? ' is-selected' : ''}${active && !multi ? ' is-active' : ''}" type="button" aria-pressed="${selected ? 'true' : 'false'}">${escapeHtml(buttonText)}</button></td>
       </tr>`;
     }).join('');
 
@@ -495,7 +527,9 @@
       row.addEventListener('click', () => {
         const p = list.find(x => productKey(x) === row.dataset.key);
         if (!p) return;
-        addProduct(p);
+        const multi = MULTI_SELECT_CATEGORIES.has(activeCategory);
+        if (!multi && selectedQuantity(activeCategory, p) > 0) setActiveProduct(activeCategory, productKey(p));
+        else addProduct(p);
         saveBuild();
         renderRows();
         renderBuild();
@@ -505,24 +539,32 @@
 
   function renderBuild() {
     const entries = flattenedBuildEntries();
-    const unitCount = entries.reduce((sum, entry) => sum + entry.qty, 0);
+    const configuredEntries = flattenedBuildEntries({ configuredOnly: true });
+    const unitCount = configuredEntries.reduce((sum, entry) => sum + entry.qty, 0);
+    const candidateCount = entries.length - configuredEntries.length;
     $('#buildCount').textContent = `(${entries.length})`;
-    $('#totalItems').textContent = entries.length === unitCount ? `${unitCount} 項` : `${entries.length} 項 · ${unitCount} 件`;
+    const configuredLabel = configuredEntries.length === unitCount ? `${unitCount} 項` : `${configuredEntries.length} 項 · ${unitCount} 件`;
+    $('#totalItems').textContent = candidateCount ? `${configuredLabel} · ${candidateCount} 候選` : configuredLabel;
 
-    $('#buildItems').innerHTML = entries.length ? entries.map(({ id, product: p, qty }) => {
+    $('#buildItems').innerHTML = entries.length ? entries.map(({ id, product: p, qty, candidate, active }) => {
       const key = productKey(p);
       const compatibility = compatibilityFor(p);
       const conflict = !compatibility.compatible;
       const multi = MULTI_SELECT_CATEGORIES.has(id);
       const lineTotal = Number(p.price || 0) * qty;
       const title = conflict ? `切到 ${categoryName(id)}｜衝突：${compatibility.reasons.join('；')}` : `切到 ${categoryName(id)}`;
+      const selectionBadge = multi
+        ? '<em class="build-multi-badge">可多選</em>'
+        : active
+          ? '<em class="build-multi-badge">目前主選</em>'
+          : '<em class="build-multi-badge">候選</em>';
       return `
-      <div class="build-item${conflict ? ' has-conflict' : ''}" data-jump-category="${escapeAttr(id)}" role="button" tabindex="0" title="${escapeAttr(title)}">
+      <div class="build-item${candidate ? ' is-candidate' : ''}${conflict ? ' has-conflict' : ''}" data-jump-category="${escapeAttr(id)}" role="button" tabindex="0" title="${escapeAttr(title)}">
         <div class="build-item-top">
           <div class="build-copy">
             <div class="build-cat">
               <span>${escapeHtml(id)}</span>${escapeHtml(categoryName(id))}
-              ${multi ? '<em class="build-multi-badge">可多選</em>' : ''}
+              ${selectionBadge}
               ${conflict ? '<em class="build-conflict">衝突</em>' : ''}
             </div>
             <div class="build-name">${escapeHtml(p.name)}</div>
@@ -530,7 +572,7 @@
               <button type="button" data-qty-action="minus" data-build-category="${escapeAttr(id)}" data-build-key="${escapeAttr(key)}" ${qty <= 1 ? 'disabled' : ''} aria-label="減少數量">−</button>
               <span>×${qty}</span>
               <button type="button" data-qty-action="plus" data-build-category="${escapeAttr(id)}" data-build-key="${escapeAttr(key)}" aria-label="增加數量">+</button>
-            </div>` : ''}
+            </div>` : candidate ? `<button class="ghost build-set-active" type="button" data-set-active-category="${escapeAttr(id)}" data-set-active-key="${escapeAttr(key)}">設為主選</button>` : ''}
           </div>
           <div class="build-side">
             <div class="build-price">${money.format(lineTotal)}</div>
@@ -540,13 +582,23 @@
       </div>`;
     }).join('') : '<div class="empty build-empty">尚未選擇商品。</div>';
 
-    const total = entries.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.qty, 0);
+    const total = configuredEntries.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.qty, 0);
     $('#totalPrice').textContent = money.format(total);
 
     document.querySelectorAll('[data-remove-key]').forEach(button => {
       button.onclick = (event) => {
         event.stopPropagation();
         removeProduct(button.dataset.removeCategory, button.dataset.removeKey);
+        saveBuild();
+        renderRows();
+        renderBuild();
+      };
+    });
+
+    document.querySelectorAll('[data-set-active-key]').forEach(button => {
+      button.onclick = (event) => {
+        event.stopPropagation();
+        setActiveProduct(button.dataset.setActiveCategory, button.dataset.setActiveKey);
         saveBuild();
         renderRows();
         renderBuild();
@@ -567,11 +619,11 @@
     document.querySelectorAll('[data-jump-category]').forEach(item => {
       const jump = () => setActiveCategory(item.dataset.jumpCategory);
       item.addEventListener('click', event => {
-        if (event.target.closest('[data-remove-key], [data-qty-action]')) return;
+        if (event.target.closest('[data-remove-key], [data-qty-action], [data-set-active-key]')) return;
         jump();
       });
       item.addEventListener('keydown', event => {
-        if (event.target.closest('[data-remove-key], [data-qty-action]')) return;
+        if (event.target.closest('[data-remove-key], [data-qty-action], [data-set-active-key]')) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
         jump();
@@ -604,17 +656,24 @@
       if (!entries.length) continue;
       categories[id] = entries.map(entry => ({ qty: entry.qty, product: entry.product }));
     }
-    return { schema_version: BUILD_SCHEMA_VERSION, exported_at: new Date().toISOString(), build: categories };
+    return {
+      schema_version: BUILD_SCHEMA_VERSION,
+      selection_model: 'active-first-candidates',
+      multi_select_categories: [...MULTI_SELECT_CATEGORIES],
+      exported_at: new Date().toISOString(),
+      build: categories,
+    };
   }
 
   function buildText() {
     const lines = ['PC Build Planner 配單'];
     let total = 0;
-    for (const { id, product: p, qty } of flattenedBuildEntries()) {
+    for (const { id, product: p, qty, candidate } of flattenedBuildEntries()) {
       const lineTotal = Number(p.price || 0) * qty;
-      total += lineTotal;
+      if (!candidate) total += lineTotal;
       const qtyText = qty > 1 ? ` ×${qty}` : '';
-      lines.push(`${id} ${categoryName(id)}: ${p.name}${qtyText} — ${money.format(lineTotal)}`);
+      const candidateText = candidate ? '（候選）' : '';
+      lines.push(`${id} ${categoryName(id)}${candidateText}: ${p.name}${qtyText} — ${money.format(lineTotal)}`);
     }
     lines.push(`合計：${money.format(total)}`);
     return lines.join('\n');
@@ -663,7 +722,11 @@
   };
   $('#exportBuild').onclick = exportJson;
 
-  window.COOLPC_BUILD_V2 = Object.freeze({ schemaVersion: BUILD_SCHEMA_VERSION, multiSelectCategories: [...MULTI_SELECT_CATEGORIES] });
+  window.COOLPC_BUILD_V2 = Object.freeze({
+    schemaVersion: BUILD_SCHEMA_VERSION,
+    multiSelectCategories: [...MULTI_SELECT_CATEGORIES],
+    candidateSelection: 'active-first',
+  });
 
   renderMeta();
   renderAll();

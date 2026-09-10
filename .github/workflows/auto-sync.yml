@@ -268,7 +268,8 @@ jobs:
               else:
                   raise AssertionError(storage)
           serialized = json.dumps(payload, ensure_ascii=False)
-          for forbidden in ('manufacturer_url', 'retrieved_at', 'adapter_version', 'provenance', 'source_value', 'raw_text'):
+          # Generic snapshot provenance is public-safe; manufacturer provenance remains private.
+          for forbidden in ('manufacturer_url', 'retrieved_at', 'adapter_version', 'source_value', 'raw_text', 'source_css_class'):
               assert forbidden not in serialized, forbidden
           print({'motherboards': len(boards), 'known': len(known), 'unknown': len(unknown)})
           PY

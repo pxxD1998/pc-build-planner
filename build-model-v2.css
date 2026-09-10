@@ -31,6 +31,30 @@ tbody tr.active-choice .row-add.is-active {
   box-shadow: 0 0 0 1px rgba(99,199,245,.18), 0 0 18px rgba(99,199,245,.16);
 }
 
+/* Compatibility is tri-state. Unknown evidence must never inherit the red
+   incompatible treatment, because unknown != incompatible. */
+tbody tr.compat-unknown:not(.selected) {
+  background: rgba(141,153,168,.025);
+}
+tbody tr.compat-unknown:not(.selected):hover {
+  background: rgba(141,153,168,.055);
+}
+.compat-unknown-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 6px;
+  border: 1px solid rgba(141,153,168,.42);
+  border-radius: 999px;
+  background: rgba(141,153,168,.08);
+  color: #b5c0cb;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .build-multi-badge {
   padding: 2px 5px;
   border: 1px solid rgba(99,199,245,.30);
@@ -49,6 +73,22 @@ tbody tr.active-choice .row-add.is-active {
 }
 .build-item.is-candidate:hover {
   background: rgba(99,199,245,.065);
+}
+.build-item.has-compat-unknown:not(.has-conflict) {
+  box-shadow: inset 3px 0 0 rgba(141,153,168,.55);
+}
+.build-compat-unknown {
+  margin-left: auto;
+  padding: 2px 5px;
+  border: 1px solid rgba(141,153,168,.38);
+  border-radius: 999px;
+  color: #b5c0cb;
+  background: rgba(141,153,168,.08);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 .build-set-active {
   margin-top: 7px;

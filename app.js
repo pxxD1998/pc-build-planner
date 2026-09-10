@@ -210,74 +210,119 @@
     return p && p.specs && typeof p.specs === 'object' && !Array.isArray(p.specs) ? p.specs : {};
   }
 
-  function compareEqual(reasons, left, right, leftLabel, rightLabel) {
-    if (left && right && left !== right) reasons.push(`${leftLabel} ${left} ≠ ${rightLabel} ${right}`);
+  function hasKnownValue(value) {
+    return value !== undefined && value !== null && value !== '';
   }
 
-  function compareSocketList(reasons, socket, supported, itemLabel) {
-    if (!socket || !Array.isArray(supported) || !supported.length) return;
-    if (!supported.includes(socket)) reasons.push(`${itemLabel}未列支援 ${socket}`);
+  function hasKnownList(value) {
+    return Array.isArray(value) && value.length > 0;
+  }
+
+  function compareEqual(result, active, left, right, leftLabel, rightLabel) {
+    if (!active) return;
+    result.checks += 1;
+    if (!hasKnownValue(left) || !hasKnownValue(right)) {
+      result.unknownReasons.push(`${leftLabel}/${rightLabel}相容性資料不足`);
+      return;
+    }
+    if (left !== right) result.reasons.push(`${leftLabel} ${left} ≠ ${rightLabel} ${right}`);
+  }
+
+  function compareSocketList(result, active, socket, supported, itemLabel) {
+    if (!active) return;
+    result.checks += 1;
+    if (!hasKnownValue(socket) || !hasKnownList(supported)) {
+      result.unknownReasons.push(`${itemLabel}腳位支援資料不足`);
+      return;
+    }
+    if (!supported.includes(socket)) result.reasons.push(`${itemLabel}未列支援 ${socket}`);
+  }
+
+  function compareNumberLimit(result, active, value, limit, itemLabel, limitLabel) {
+    if (!active) return;
+    result.checks += 1;
+    const itemValue = Number(value);
+    const limitValue = Number(limit);
+    if (!Number.isFinite(itemValue) || !Number.isFinite(limitValue)) {
+      result.unknownReasons.push(`${itemLabel}/${limitLabel}尺寸資料不足`);
+      return;
+    }
+    if (itemValue > limitValue) result.reasons.push(`${itemLabel} ${value}mm > ${limitLabel} ${limit}mm`);
+  }
+
+  function compareSupportList(result, active, value, supported, itemLabel, valueLabel) {
+    if (!active) return;
+    result.checks += 1;
+    if (!hasKnownValue(value) || !hasKnownList(supported)) {
+      result.unknownReasons.push(`${itemLabel}${valueLabel}支援資料不足`);
+      return;
+    }
+    if (!supported.includes(value)) result.reasons.push(`${itemLabel}未列支援 ${value} ${valueLabel}`);
+  }
+
+  function compareRadiatorSupport(result, active, size, supported) {
+    if (!active) return;
+    result.checks += 1;
+    const radiatorSize = Number(size);
+    if (!Number.isFinite(radiatorSize) || !hasKnownList(supported)) {
+      result.unknownReasons.push('水冷/機殼冷排支援資料不足');
+      return;
+    }
+    if (!supported.includes(radiatorSize)) result.reasons.push(`機殼未列支援 ${size}mm 冷排`);
   }
 
   function compatibilityFor(product) {
     const id = String(product?.category_id ?? '');
     const s = specsOf(product);
-    const reasons = [];
+    const result = { checks: 0, reasons: [], unknownReasons: [] };
 
-    const cpuSpecs = specsOf(selectedProduct('4'));
-    const mbSpecs = specsOf(selectedProduct('5'));
-    const ramSpecs = specsOf(selectedProduct('6'));
-    const coolerSpecs = specsOf(selectedProduct('10'));
-    const aioSpecs = specsOf(selectedProduct('11'));
-    const gpuSpecs = specsOf(selectedProduct('12'));
-    const caseSpecs = specsOf(selectedProduct('14'));
+    const cpu = selectedProduct('4');
+    const mb = selectedProduct('5');
+    const ram = selectedProduct('6');
+    const cooler = selectedProduct('10');
+    const aio = selectedProduct('11');
+    const gpu = selectedProduct('12');
+    const pcCase = selectedProduct('14');
+
+    const cpuSpecs = specsOf(cpu);
+    const mbSpecs = specsOf(mb);
+    const ramSpecs = specsOf(ram);
+    const coolerSpecs = specsOf(cooler);
+    const aioSpecs = specsOf(aio);
+    const gpuSpecs = specsOf(gpu);
+    const caseSpecs = specsOf(pcCase);
 
     if (id === '4') {
-      compareEqual(reasons, s.socket, mbSpecs.socket, 'CPU', '主機板');
-      compareSocketList(reasons, s.socket, coolerSpecs.sockets, '塔散');
-      compareSocketList(reasons, s.socket, aioSpecs.sockets, '水冷');
+      compareEqual(result, Boolean(mb), s.socket, mbSpecs.socket, 'CPU', '主機板');
+      compareSocketList(result, Boolean(cooler), s.socket, coolerSpecs.sockets, '塔散');
+      compareSocketList(result, Boolean(aio), s.socket, aioSpecs.sockets, '水冷');
     }
     if (id === '5') {
-      compareEqual(reasons, s.socket, cpuSpecs.socket, '主機板', 'CPU');
-      compareEqual(reasons, s.memory_type, ramSpecs.memory_type, '主機板', '記憶體');
-      if (s.form_factor && Array.isArray(caseSpecs.motherboard_support) && caseSpecs.motherboard_support.length && !caseSpecs.motherboard_support.includes(s.form_factor)) {
-        reasons.push(`機殼未列支援 ${s.form_factor} 主機板`);
-      }
+      compareEqual(result, Boolean(cpu), s.socket, cpuSpecs.socket, '主機板', 'CPU');
+      compareEqual(result, Boolean(ram), s.memory_type, ramSpecs.memory_type, '主機板', '記憶體');
+      compareSupportList(result, Boolean(pcCase), s.form_factor, caseSpecs.motherboard_support, '機殼', '主機板');
     }
-    if (id === '6') compareEqual(reasons, s.memory_type, mbSpecs.memory_type, '記憶體', '主機板');
+    if (id === '6') compareEqual(result, Boolean(mb), s.memory_type, mbSpecs.memory_type, '記憶體', '主機板');
     if (id === '10') {
-      compareSocketList(reasons, cpuSpecs.socket, s.sockets, '塔散');
-      if (Number.isFinite(Number(s.cooler_height_mm)) && Number.isFinite(Number(caseSpecs.max_cpu_cooler_height_mm)) && Number(s.cooler_height_mm) > Number(caseSpecs.max_cpu_cooler_height_mm)) {
-        reasons.push(`塔散 ${s.cooler_height_mm}mm > 機殼限高 ${caseSpecs.max_cpu_cooler_height_mm}mm`);
-      }
+      compareSocketList(result, Boolean(cpu), cpuSpecs.socket, s.sockets, '塔散');
+      compareNumberLimit(result, Boolean(pcCase), s.cooler_height_mm, caseSpecs.max_cpu_cooler_height_mm, '塔散', '機殼限高');
     }
     if (id === '11') {
-      compareSocketList(reasons, cpuSpecs.socket, s.sockets, '水冷');
-      if (s.radiator_size_mm && Array.isArray(caseSpecs.radiator_support_mm) && caseSpecs.radiator_support_mm.length && !caseSpecs.radiator_support_mm.includes(Number(s.radiator_size_mm))) {
-        reasons.push(`機殼未列支援 ${s.radiator_size_mm}mm 冷排`);
-      }
+      compareSocketList(result, Boolean(cpu), cpuSpecs.socket, s.sockets, '水冷');
+      compareRadiatorSupport(result, Boolean(pcCase), s.radiator_size_mm, caseSpecs.radiator_support_mm);
     }
     if (id === '12') {
-      if (Number.isFinite(Number(s.length_mm)) && Number.isFinite(Number(caseSpecs.max_gpu_length_mm)) && Number(s.length_mm) > Number(caseSpecs.max_gpu_length_mm)) {
-        reasons.push(`顯卡 ${s.length_mm}mm > 機殼限長 ${caseSpecs.max_gpu_length_mm}mm`);
-      }
+      compareNumberLimit(result, Boolean(pcCase), s.length_mm, caseSpecs.max_gpu_length_mm, '顯卡', '機殼限長');
     }
     if (id === '14') {
-      if (Number.isFinite(Number(gpuSpecs.length_mm)) && Number.isFinite(Number(s.max_gpu_length_mm)) && Number(gpuSpecs.length_mm) > Number(s.max_gpu_length_mm)) {
-        reasons.push(`顯卡 ${gpuSpecs.length_mm}mm > 機殼限長 ${s.max_gpu_length_mm}mm`);
-      }
-      if (mbSpecs.form_factor && Array.isArray(s.motherboard_support) && s.motherboard_support.length && !s.motherboard_support.includes(mbSpecs.form_factor)) {
-        reasons.push(`機殼未列支援 ${mbSpecs.form_factor} 主機板`);
-      }
-      if (Number.isFinite(Number(coolerSpecs.cooler_height_mm)) && Number.isFinite(Number(s.max_cpu_cooler_height_mm)) && Number(coolerSpecs.cooler_height_mm) > Number(s.max_cpu_cooler_height_mm)) {
-        reasons.push(`塔散 ${coolerSpecs.cooler_height_mm}mm > 機殼限高 ${s.max_cpu_cooler_height_mm}mm`);
-      }
-      if (aioSpecs.radiator_size_mm && Array.isArray(s.radiator_support_mm) && s.radiator_support_mm.length && !s.radiator_support_mm.includes(Number(aioSpecs.radiator_size_mm))) {
-        reasons.push(`機殼未列支援 ${aioSpecs.radiator_size_mm}mm 冷排`);
-      }
+      compareNumberLimit(result, Boolean(gpu), gpuSpecs.length_mm, s.max_gpu_length_mm, '顯卡', '機殼限長');
+      compareSupportList(result, Boolean(mb), mbSpecs.form_factor, s.motherboard_support, '機殼', '主機板');
+      compareNumberLimit(result, Boolean(cooler), coolerSpecs.cooler_height_mm, s.max_cpu_cooler_height_mm, '塔散', '機殼限高');
+      compareRadiatorSupport(result, Boolean(aio), aioSpecs.radiator_size_mm, s.radiator_support_mm);
     }
 
-    return { compatible: reasons.length === 0, reasons };
+    const state = result.reasons.length ? 'incompatible' : result.unknownReasons.length ? 'unknown' : 'compatible';
+    return { ...result, state, compatible: state === 'compatible' };
   }
 
   function specLabels(product) {
@@ -483,7 +528,7 @@
         && (!brand || p.brand === brand)
         && (!sub || p.subcategory === sub);
     });
-    if (compatibleOnly) list = list.filter(p => compatibilityFor(p).compatible || selectedKeys.has(productKey(p)));
+    if (compatibleOnly) list = list.filter(p => compatibilityFor(p).state === 'compatible' || selectedKeys.has(productKey(p)));
 
     switch ($('#sort').value) {
       case 'price-asc': list.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name, 'zh-Hant')); break;
@@ -504,16 +549,21 @@
       const selected = qty > 0;
       const active = selected && isActiveProduct(activeCategory, p);
       const compatibility = compatibilityFor(p);
-      const conflict = !compatibility.compatible;
-      const classes = [selected ? 'selected' : '', active && !multi ? 'active-choice' : '', selected && !active ? 'candidate-choice' : '', conflict ? 'incompatible' : ''].filter(Boolean).join(' ');
-      const conflictBadge = conflict ? `<span class="compat-badge" title="${escapeAttr(compatibility.reasons.join('；'))}">不相容</span>` : '';
+      const conflict = compatibility.state === 'incompatible';
+      const unknown = compatibility.state === 'unknown';
+      const classes = [selected ? 'selected' : '', active && !multi ? 'active-choice' : '', selected && !active ? 'candidate-choice' : '', conflict ? 'incompatible' : '', unknown ? 'compat-unknown' : ''].filter(Boolean).join(' ');
+      const compatibilityBadge = conflict
+        ? `<span class="compat-badge" title="${escapeAttr(compatibility.reasons.join('；'))}">不相容</span>`
+        : unknown
+          ? `<span class="compat-unknown-badge" title="${escapeAttr(compatibility.unknownReasons.join('；'))}">資料不足</span>`
+          : '';
       const buttonText = multi
         ? (selected ? `+1 · 已選 ×${qty}` : '+ 加入')
         : (active ? '★ 目前使用' : selected ? '設為主選' : '+ 加入候選');
       return `<tr class="${classes}" data-key="${escapeAttr(productKey(p))}">
         <td class="brand">${escapeHtml(p.brand || '—')}</td>
         <td class="name">
-          <div class="name-line"><strong>${escapeHtml(p.name)}</strong>${conflictBadge}</div>
+          <div class="name-line"><strong>${escapeHtml(p.name)}</strong>${compatibilityBadge}</div>
           ${renderSpecChips(p)}
           ${p.raw_text ? `<div class="raw">${escapeHtml(p.raw_text)}</div>` : ''}
         </td>
@@ -549,23 +599,29 @@
     $('#buildItems').innerHTML = entries.length ? entries.map(({ id, product: p, qty, candidate, active }) => {
       const key = productKey(p);
       const compatibility = compatibilityFor(p);
-      const conflict = !compatibility.compatible;
+      const conflict = compatibility.state === 'incompatible';
+      const unknown = compatibility.state === 'unknown';
       const multi = MULTI_SELECT_CATEGORIES.has(id);
       const lineTotal = Number(p.price || 0) * qty;
-      const title = conflict ? `切到 ${categoryName(id)}｜衝突：${compatibility.reasons.join('；')}` : `切到 ${categoryName(id)}`;
+      const title = conflict
+        ? `切到 ${categoryName(id)}｜衝突：${compatibility.reasons.join('；')}`
+        : unknown
+          ? `切到 ${categoryName(id)}｜相容性資料不足：${compatibility.unknownReasons.join('；')}`
+          : `切到 ${categoryName(id)}`;
       const selectionBadge = multi
         ? '<em class="build-multi-badge">可多選</em>'
         : active
           ? '<em class="build-multi-badge">目前主選</em>'
           : '<em class="build-multi-badge">候選</em>';
       return `
-      <div class="build-item${candidate ? ' is-candidate' : ''}${conflict ? ' has-conflict' : ''}" data-jump-category="${escapeAttr(id)}" role="button" tabindex="0" title="${escapeAttr(title)}">
+      <div class="build-item${candidate ? ' is-candidate' : ''}${conflict ? ' has-conflict' : ''}${unknown ? ' has-compat-unknown' : ''}" data-jump-category="${escapeAttr(id)}" role="button" tabindex="0" title="${escapeAttr(title)}">
         <div class="build-item-top">
           <div class="build-copy">
             <div class="build-cat">
               <span>${escapeHtml(id)}</span>${escapeHtml(categoryName(id))}
               ${selectionBadge}
               ${conflict ? '<em class="build-conflict">衝突</em>' : ''}
+              ${unknown ? '<em class="build-compat-unknown">資料不足</em>' : ''}
             </div>
             <div class="build-name">${escapeHtml(p.name)}</div>
             ${multi ? `<div class="build-qty" aria-label="數量">
@@ -726,6 +782,7 @@
     schemaVersion: BUILD_SCHEMA_VERSION,
     multiSelectCategories: [...MULTI_SELECT_CATEGORIES],
     candidateSelection: 'active-first',
+    compatibility: 'tri-state-strict',
   });
 
   renderMeta();

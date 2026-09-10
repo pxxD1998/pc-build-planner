@@ -50,6 +50,11 @@
     if (direct && typeof direct === 'object') return direct;
     return priceAnnotationFor(p)?.price_change || null;
   }
+  function priceSeriesFor(p) {
+    if (Array.isArray(p?.price_series)) return p.price_series;
+    const series = priceAnnotationFor(p)?.price_series;
+    return Array.isArray(series) ? series : [];
+  }
   function groupFor(p) {
     const annotated = sourceAnnotationFor(p)?.group;
     return String(annotated || p?.subcategory || '其他').trim() || '其他';
@@ -57,9 +62,11 @@
 
   const byKey = new Map(products.map(p => [keyFor(p), p]));
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function escapeAttr(value) { return escapeHtml(value); }
   function priceText(value) { return money.format(Number(value || 0)).replace(/^TWD\s*/, 'NT$'); }
 
+  // Evidence-bounded reference-image pilot. These are the same family/reference
+  // images exposed by CoolPC's own category overview, not a claim that every
+  // mapped image is a unique photograph of the exact retail variant.
   function referenceImageFor(p) {
     const categoryId = String(p?.category_id ?? '');
     const name = String(p?.name || '');
@@ -85,18 +92,50 @@
     return '';
   }
 
-  function priceSparklineHtml(down) {
-    const startY = down ? 5 : 25;
-    const endY = down ? 25 : 5;
-    return `<svg class="price-history-sparkline" viewBox="0 0 96 30" role="img" aria-label="最近一次可驗證價格${down ? '下降' : '上升'}">
+  function normalizedPriceSeries(change, series) {
+    const observed = (Array.isArray(series) ? series : []).map(point => ({
+      at: String(point?.at || ''),
+      price: Number(point?.price),
+    })).filter(point => point.at && Number.isFinite(point.price));
+    if (observed.length >= 2 && new Set(observed.map(point => point.price)).size >= 2) {
+      return observed.slice(-24);
+    }
+    const previous = Number(change?.previous_price), current = Number(change?.current_price);
+    if (![previous, current].every(Number.isFinite) || previous === current) return [];
+    return [
+      { at: '', price: previous },
+      { at: String(change?.changed_at || ''), price: current },
+    ];
+  }
+
+  function priceSparklineHtml(change, series) {
+    const points = normalizedPriceSeries(change, series);
+    if (points.length < 2) return '';
+    const prices = points.map(point => point.price);
+    const minPrice = Math.min(...prices), maxPrice = Math.max(...prices);
+    const range = maxPrice - minPrice;
+    const times = points.map(point => Date.parse(point.at));
+    const timed = times.every(Number.isFinite) && times[times.length - 1] > times[0];
+    const minTime = timed ? times[0] : 0;
+    const timeSpan = timed ? times[times.length - 1] - minTime : 0;
+    const coords = points.map((point, index) => {
+      const x = timed
+        ? 4 + ((times[index] - minTime) / timeSpan) * 88
+        : 4 + (index / Math.max(1, points.length - 1)) * 88;
+      const y = range ? 4 + ((maxPrice - point.price) / range) * 22 : 15;
+      return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), price: point.price };
+    });
+    const path = coords.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${point.y}`).join(' ');
+    const circles = coords.map((point, index) => `<circle class="price-history-point${index === coords.length - 1 ? ' is-current' : ''}" cx="${point.x}" cy="${point.y}" r="${index === coords.length - 1 ? 3 : 2}"></circle>`).join('');
+    const aria = `價格歷史 ${points.length} 個實際 snapshot 節點，最低 ${priceText(minPrice)}，最高 ${priceText(maxPrice)}`;
+    return `<svg class="price-history-sparkline" viewBox="0 0 96 30" role="img" aria-label="${escapeHtml(aria)}">
       <line class="price-history-baseline" x1="4" y1="28" x2="92" y2="28"></line>
-      <path class="price-history-trend" d="M4 ${startY} L92 ${endY}"></path>
-      <circle class="price-history-point" cx="4" cy="${startY}" r="2.5"></circle>
-      <circle class="price-history-point is-current" cx="92" cy="${endY}" r="3"></circle>
+      <path class="price-history-trend" d="${path}"></path>
+      ${circles}
     </svg>`;
   }
 
-  function priceChangeHtml(change) {
+  function priceChangeHtml(change, series) {
     if (!change || !['up', 'down'].includes(change.direction)) return '';
     const current = Number(change.current_price), previous = Number(change.previous_price), delta = Number(change.delta);
     if (![current, previous, delta].every(Number.isFinite) || !delta) return '';
@@ -105,14 +144,16 @@
     const pct = Number(change.delta_pct);
     const pctText = Number.isFinite(pct) ? `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%` : '';
     const date = String(change.changed_at || '').slice(0, 10);
-    return `<div class="price-history ${down ? 'is-down' : 'is-up'}" title="最近一次由 PC Build Planner 歷史 snapshot 驗證的價格變化；折線只畫真實前值與現值，不補造中間資料">
-      ${priceSparklineHtml(down)}
+    const points = normalizedPriceSeries(change, series);
+    const pointText = points.length > 2 ? `${points.length} 節點` : '2 節點';
+    return `<div class="price-history ${down ? 'is-down' : 'is-up'}" title="折線只使用已保存的真實 snapshot 價格節點；缺資料不補值、不做模糊配對">
+      ${priceSparklineHtml(change, series)}
       <div class="price-history-copy">
         <div class="price-history-label">${label}</div>
         <div class="price-history-route">${escapeHtml(priceText(previous))} → ${escapeHtml(priceText(current))}</div>
         <div class="price-history-delta">${arrow} ${escapeHtml(priceText(Math.abs(delta)))}${pctText ? ` · ${escapeHtml(pctText)}` : ''}</div>
         ${date ? `<div class="price-history-date">${escapeHtml(date)}</div>` : ''}
-        <div class="price-history-source">snapshot</div>
+        <div class="price-history-source">snapshot · ${escapeHtml(pointText)}</div>
       </div>
     </div>`;
   }
@@ -201,7 +242,7 @@
         }
         const priceCell = row.querySelector('td.price');
         if (priceCell && !priceCell.querySelector('.price-current')) {
-          priceCell.innerHTML = `<div class="price-current">${escapeHtml(priceText(p.price))}</div>${priceChangeHtml(priceChangeFor(p))}`;
+          priceCell.innerHTML = `<div class="price-current">${escapeHtml(priceText(p.price))}</div>${priceChangeHtml(priceChangeFor(p), priceSeriesFor(p))}`;
         }
         if (sort === 'source') {
           const group = groupFor(p);

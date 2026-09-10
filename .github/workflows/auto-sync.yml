@@ -149,6 +149,22 @@ jobs:
             git push origin HEAD:coolpc-mirror-v0.1.0
           fi
 
+      - name: Rebuild snapshot price history without network
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: private-source/coolpc-mirror
+        shell: bash
+        run: |
+          python tools/build_price_history.py --products site/data/products.json --history-dir site/data/history --data-dir site/data
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('site/data/price-history.json').read_text(encoding='utf-8'))
+          assert payload.get('schema_version') == 2, payload.get('schema_version')
+          assert payload.get('identity') == 'exact_fingerprint_v2', payload.get('identity')
+          print({'price_history_schema': payload['schema_version'], 'identity': payload['identity'], 'annotations': len(payload.get('annotations') or {})})
+          PY
+
       - name: Verify structured snapshot consistency
         if: steps.auth.outputs.enabled == 'true'
         working-directory: private-source/coolpc-mirror

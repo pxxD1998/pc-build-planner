@@ -97,12 +97,16 @@ jobs:
           echo "refresh=$refresh" >> "$GITHUB_OUTPUT"
           echo "Refresh upstream catalog: $refresh"
 
-      - name: Fetch and parse one fresh CoolPC catalog
+      - name: Fetch once and derive all CoolPC catalog layers
         if: steps.auth.outputs.enabled == 'true' && steps.mode.outputs.refresh == 'true'
         working-directory: private-source/coolpc-mirror
-        run: python scraper.py
+        shell: bash
+        run: |
+          python scraper.py --save-html /tmp/coolpc-evaluate.html
+          python tools/preserve_catalog_semantics.py --html /tmp/coolpc-evaluate.html --data-dir site/data
+          python tools/build_price_history.py --products site/data/products.json --history-dir site/data/history --data-dir site/data
 
-      - name: Commit private generated data when product content changed
+      - name: Commit private generated data when stable catalog content changed
         if: steps.auth.outputs.enabled == 'true' && steps.mode.outputs.refresh == 'true'
         working-directory: private-source
         shell: bash
@@ -110,21 +114,38 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add coolpc-mirror/site/data/products.csv
-          if git diff --cached --quiet -- coolpc-mirror/site/data/products.csv; then
-            git restore --staged coolpc-mirror/site/data/products.csv || true
+          git add \
+            coolpc-mirror/site/data/products.csv \
+            coolpc-mirror/site/data/catalog-semantics.json \
+            coolpc-mirror/site/data/catalog-semantics.js \
+            coolpc-mirror/site/data/price-history.json \
+            coolpc-mirror/site/data/price-history.js
+
+          if git diff --cached --quiet -- \
+            coolpc-mirror/site/data/products.csv \
+            coolpc-mirror/site/data/catalog-semantics.json \
+            coolpc-mirror/site/data/catalog-semantics.js \
+            coolpc-mirror/site/data/price-history.json \
+            coolpc-mirror/site/data/price-history.js; then
             git restore -- \
               coolpc-mirror/site/data/products.json \
               coolpc-mirror/site/data/products.csv \
               coolpc-mirror/site/data/products.js
-            echo "No private product-content changes"
+            echo "No private product, source-semantic, or price-history changes"
           else
-            git add \
-              coolpc-mirror/site/data/products.json \
-              coolpc-mirror/site/data/products.js \
-              coolpc-mirror/site/data/products.csv \
-              coolpc-mirror/site/data/history
-            git commit -m "data: refresh CoolPC products"
+            if git diff --cached --quiet -- coolpc-mirror/site/data/products.csv; then
+              git restore --staged -- coolpc-mirror/site/data/products.csv || true
+              git restore -- \
+                coolpc-mirror/site/data/products.json \
+                coolpc-mirror/site/data/products.csv \
+                coolpc-mirror/site/data/products.js
+            else
+              git add \
+                coolpc-mirror/site/data/products.json \
+                coolpc-mirror/site/data/products.js \
+                coolpc-mirror/site/data/history
+            fi
+            git commit -m "data: refresh CoolPC catalog fidelity"
             git push origin HEAD:coolpc-mirror-v0.1.0
           fi
 
@@ -161,6 +182,48 @@ jobs:
             echo "Private build namespace leaked into public app.js" >&2
             exit 1
           fi
+
+      - name: Verify public catalog fidelity assets
+        if: steps.auth.outputs.enabled == 'true'
+        working-directory: public-repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f catalog-fidelity.css
+          test -f catalog-fidelity.js
+          grep -Fq 'href="catalog-fidelity.css"' index.html
+          grep -Fq 'src="catalog-fidelity.js"' index.html
+          grep -Fq 'price-history-route' catalog-fidelity.js
+          grep -Fq 'catalog-group-row' catalog-fidelity.js
+          grep -Fq 'COOLPC_PRICE_HISTORY' catalog-fidelity.js
+          if grep -Fq 'data/catalog-semantics.js' index.html; then
+            echo "Private catalog semantics sidecar leaked into public index" >&2
+            exit 1
+          fi
+          if grep -Fq 'data/price-history.js' index.html; then
+            echo "Private price history sidecar leaked into public index" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          raw = Path('data/products.js').read_text(encoding='utf-8')
+          prefix = 'window.COOLPC_DATA = '
+          assert raw.startswith(prefix)
+          payload = json.loads(raw[len(prefix):].removesuffix(';\n'))
+          serialized = json.dumps(payload, ensure_ascii=False)
+          for forbidden in ('source_value', 'raw_text', 'source_css_class', 'manufacturer_url', 'retrieved_at', 'adapter_version'):
+              assert forbidden not in serialized, forbidden
+          for product in payload['products']:
+              change = product.get('price_change')
+              if change:
+                  assert change['direction'] in ('up', 'down')
+                  assert change['current_price'] == product['price']
+                  assert change['delta'] == change['current_price'] - change['previous_price']
+                  assert change['provenance'] == 'snapshot'
+          print({'products': len(payload['products']), 'price_changes': sum(bool(p.get('price_change')) for p in payload['products'])})
+          PY
 
       - name: Verify public storage-fit assets
         if: steps.auth.outputs.enabled == 'true'

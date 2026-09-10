@@ -1,0 +1,220 @@
+/* CoolPC Catalog Fidelity
+   Core: preserve CoolPC-native catalog information first; enrichment stays secondary. */
+
+.catalog .table-wrap table {
+  table-layout: fixed;
+}
+
+/* Subcategory becomes an in-flow source-order divider so the product column gets the width back. */
+.catalog th:nth-child(3),
+.catalog td.sub {
+  display: none;
+}
+
+.catalog th:nth-child(1),
+.catalog td:nth-child(1) {
+  width: 92px;
+}
+
+.catalog th:nth-child(4),
+.catalog td:nth-child(4) {
+  width: 178px;
+}
+
+.catalog th:nth-child(5),
+.catalog td:nth-child(5) {
+  width: 78px;
+}
+
+.catalog-product-row td.name {
+  padding-right: 18px;
+}
+
+.catalog-product-row td.name strong {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.catalog-product-row .raw {
+  color: #91a0af;
+  font-size: 10.5px;
+  line-height: 1.45;
+  margin-top: 5px;
+}
+
+/* CoolPC source grouping has higher visual priority than derived enrichment. */
+.catalog-group-row td {
+  padding: 10px 12px 7px;
+  border-top: 1px solid #344454;
+  border-bottom: 1px solid #25313c;
+  background: #10171e;
+  color: #d7e2ec;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .025em;
+}
+
+.catalog-group-row td span::before {
+  content: "原價屋分類";
+  display: inline-block;
+  margin-right: 9px;
+  color: #6f8294;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.catalog-semantic-row td {
+  padding: 7px 12px;
+  background: #0d1319;
+  color: #92a1b0;
+  font-size: 10px;
+  line-height: 1.5;
+  border-bottom: 1px solid #202a34;
+}
+
+.catalog-semantic-row.is-header td {
+  color: #c7d2dd;
+  font-weight: 780;
+}
+
+.catalog-semantic-row.is-separator td {
+  color: #657587;
+}
+
+/* Parsed/manufacturer specs are enhancement, not the product's primary line. */
+.catalog-enrichment {
+  width: max-content;
+  max-width: 100%;
+  margin-top: 6px;
+  color: #8090a0;
+}
+
+.catalog-enrichment summary {
+  cursor: pointer;
+  user-select: none;
+  width: max-content;
+  max-width: 100%;
+  color: #78899a;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.catalog-enrichment[open] summary {
+  margin-bottom: 5px;
+  color: #9fb0bf;
+}
+
+.catalog-enrichment .spec-chips {
+  margin-top: 0;
+}
+
+/* CoolPC source status is kept visually/provenance-distinct from snapshot price history. */
+.source-status-line {
+  margin-top: 5px;
+}
+
+.source-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.source-status.changed {
+  color: #8fd5a5;
+  border-color: rgba(105, 201, 134, .42);
+  background: rgba(105, 201, 134, .08);
+}
+
+.source-status.hot {
+  color: #f0a0a0;
+  border-color: rgba(239, 112, 112, .42);
+  background: rgba(239, 112, 112, .08);
+}
+
+.source-status.hot-changed {
+  color: #8fbdf4;
+  border-color: rgba(102, 163, 235, .46);
+  background: rgba(102, 163, 235, .09);
+}
+
+.price-current {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 880;
+  white-space: nowrap;
+}
+
+.price-history {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #273542;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.price-history-label {
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.price-history-route,
+.price-history-delta {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.price-history-date,
+.price-history-source {
+  margin-top: 1px;
+  color: #718191;
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.price-history-source {
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.price-history.is-down .price-history-label,
+.price-history.is-down .price-history-delta {
+  color: #8fd5a5;
+}
+
+.price-history.is-up .price-history-label,
+.price-history.is-up .price-history-delta {
+  color: #f0a0a0;
+}
+
+@media (max-width: 650px) {
+  .catalog th:nth-child(1),
+  .catalog td:nth-child(1) {
+    display: none;
+  }
+
+  .catalog th:nth-child(4),
+  .catalog td:nth-child(4) {
+    width: 130px;
+  }
+
+  .catalog th:nth-child(5),
+  .catalog td:nth-child(5) {
+    width: 64px;
+  }
+
+  .price-history-route {
+    white-space: normal;
+  }
+}

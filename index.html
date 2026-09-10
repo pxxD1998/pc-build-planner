@@ -11,6 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="catalog-fidelity.css" />
   <link rel="stylesheet" href="build-model-v2.css" />
   <link rel="stylesheet" href="storage-fit.css" />
   <link rel="stylesheet" href="back-to-top.css" />
@@ -29,10 +30,7 @@
   <main class="layout">
     <aside class="categories panel" aria-label="商品分類">
       <div class="category-head">
-        <div>
-          <div class="eyebrow">CATALOG</div>
-          <h2>商品分類</h2>
-        </div>
+        <div><div class="eyebrow">CATALOG</div><h2>商品分類</h2></div>
         <span class="category-total" id="categoryTotal">共 0 類</span>
       </div>
       <nav class="category-list" id="categories"></nav>
@@ -44,12 +42,8 @@
           <div class="breadcrumb">PC 零件估價 <span>→</span> <strong id="activeCategoryName">分類</strong></div>
           <h2 id="catalogTitle">商品</h2>
         </div>
-        <label class="mobile-category">
-          <span>商品分類</span>
-          <select id="categorySelect" aria-label="商品分類"></select>
-        </label>
+        <label class="mobile-category"><span>商品分類</span><select id="categorySelect" aria-label="商品分類"></select></label>
       </div>
-
       <div class="toolbar">
         <input id="search" type="search" placeholder="搜尋型號、規格、品牌…（空格 = AND）" autocomplete="off" />
         <input id="minPrice" type="number" min="0" placeholder="最低價" />
@@ -57,84 +51,45 @@
         <select id="brandFilter" aria-label="品牌"><option value="">全部品牌</option></select>
         <select id="subFilter" aria-label="子分類"><option value="">全部子分類</option></select>
         <select id="sort" aria-label="排序">
-          <option value="source">原始順序</option>
-          <option value="price-asc">價格低 → 高</option>
-          <option value="price-desc">價格高 → 低</option>
-          <option value="name">名稱 A → Z</option>
+          <option value="source">原始順序</option><option value="price-asc">價格低 → 高</option><option value="price-desc">價格高 → 低</option><option value="name">名稱 A → Z</option>
         </select>
         <button id="resetFilters" class="ghost">重設篩選</button>
       </div>
-
       <div class="result-summary">
         <div class="result-summary-left">
           <strong id="resultCount">0 項</strong>
-          <label class="compat-toggle" title="只隱藏已能從結構化規格確認為衝突的商品" hidden>
-            <input id="compatibleOnly" type="checkbox" checked aria-label="只看相容商品" />
-            <span>只看相容</span>
-          </label>
+          <label class="compat-toggle" title="只隱藏已能從結構化規格確認為衝突的商品" hidden><input id="compatibleOnly" type="checkbox" checked aria-label="只看相容商品" /><span>只看相容</span></label>
         </div>
-        <button id="backToCatalogTop" class="back-to-top" type="button" aria-label="回到商品第一筆" aria-hidden="true" tabindex="-1">
-          <span aria-hidden="true">↑</span>
-          <span>回到第一筆</span>
-        </button>
+        <button id="backToCatalogTop" class="back-to-top" type="button" aria-label="回到商品第一筆" aria-hidden="true" tabindex="-1"><span aria-hidden="true">↑</span><span>回到第一筆</span></button>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>品牌</th><th>名稱</th><th>子分類</th><th class="price">價格</th><th>選擇</th></tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
+      <div class="table-wrap"><table><thead><tr><th>品牌</th><th>名稱</th><th>子分類</th><th class="price">價格</th><th>選擇</th></tr></thead><tbody id="rows"></tbody></table></div>
       <div id="empty" class="empty" hidden>沒有符合目前條件的商品。</div>
     </section>
 
     <aside class="build panel">
-      <div class="build-head">
-        <div>
-          <div class="eyebrow">CURRENT BUILD</div>
-          <h2>目前配單 <span class="build-count" id="buildCount">(0)</span></h2>
-        </div>
-        <button id="clearBuild" class="ghost danger" hidden>清空全部</button>
-      </div>
+      <div class="build-head"><div><div class="eyebrow">CURRENT BUILD</div><h2>目前配單 <span class="build-count" id="buildCount">(0)</span></h2></div><button id="clearBuild" class="ghost danger" hidden>清空全部</button></div>
       <div id="buildItems" class="build-items"></div>
-      <div class="total">
-        <div><span>總計</span><small id="totalItems">0 項</small></div>
-        <strong id="totalPrice">$0</strong>
-      </div>
-      <div class="build-manage-actions">
-        <button id="saveBuildSnapshot" type="button">暫存配單</button>
-        <button id="newBuild" type="button" class="secondary">清空全部</button>
-      </div>
-      <details class="saved-builds" id="savedBuildsPanel">
-        <summary>我的暫存配單 <span class="saved-build-count" id="savedBuildCount">(0)</span></summary>
-        <div class="saved-build-items" id="savedBuildItems"></div>
-      </details>
-      <div class="build-actions">
-        <button id="copyBuild">複製文字</button>
-        <button id="exportBuild" class="secondary">匯出 JSON</button>
-      </div>
+      <div class="total"><div><span>總計</span><small id="totalItems">0 項</small></div><strong id="totalPrice">$0</strong></div>
+      <div class="build-manage-actions"><button id="saveBuildSnapshot" type="button">暫存配單</button><button id="newBuild" type="button" class="secondary">清空全部</button></div>
+      <details class="saved-builds" id="savedBuildsPanel"><summary>我的暫存配單 <span class="saved-build-count" id="savedBuildCount">(0)</span></summary><div class="saved-build-items" id="savedBuildItems"></div></details>
+      <div class="build-actions"><button id="copyBuild">複製文字</button><button id="exportBuild" class="secondary">匯出 JSON</button></div>
       <p class="source-note">獨立第三方工具，與原價屋 CoolPC 無隸屬、授權或合作關係。商品、價格、庫存、規格與相容性僅供參考，實際資訊請以原價屋與原廠當下資料為準。</p>
     </aside>
   </main>
 
   <script src="data/products.js"></script>
   <script src="app.js"></script>
+  <script src="catalog-fidelity.js"></script>
   <script src="saved-builds.js"></script>
   <script src="storage-fit.js"></script>
   <script>
     document.addEventListener('click', event => {
       const row = event.target.closest('#rows tr');
       if (!row || event.target.closest('.row-add')) return;
-
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
-
       for (let index = 0; index < selection.rangeCount; index += 1) {
-        if (selection.getRangeAt(index).intersectsNode(row)) {
-          event.stopImmediatePropagation();
-          return;
-        }
+        if (selection.getRangeAt(index).intersectsNode(row)) { event.stopImmediatePropagation(); return; }
       }
     }, true);
   </script>

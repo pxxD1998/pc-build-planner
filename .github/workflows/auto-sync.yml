@@ -5,7 +5,7 @@ on:
     branches:
       - main
     # Workflow maintenance pushes also perform an immediate no-refresh source sync.
-    # Archive verification 2026-09-10: verify refresh-resilient storage regression without a CoolPC refresh.
+    # Manual no-refresh verification 2026-09-11: real snapshot price-series rollout.
     paths:
       - ".github/workflows/auto-sync.yml"
   schedule:
@@ -194,6 +194,7 @@ jobs:
           grep -Fq 'href="catalog-fidelity.css"' index.html
           grep -Fq 'src="catalog-fidelity.js"' index.html
           grep -Fq 'price-history-route' catalog-fidelity.js
+          grep -Fq 'priceSeriesFor' catalog-fidelity.js
           grep -Fq 'catalog-group-row' catalog-fidelity.js
           grep -Fq 'COOLPC_PRICE_HISTORY' catalog-fidelity.js
           if grep -Fq 'data/catalog-semantics.js' index.html; then
@@ -215,14 +216,29 @@ jobs:
           serialized = json.dumps(payload, ensure_ascii=False)
           for forbidden in ('source_value', 'raw_text', 'source_css_class', 'manufacturer_url', 'retrieved_at', 'adapter_version'):
               assert forbidden not in serialized, forbidden
+          price_changes = 0
+          price_series = 0
           for product in payload['products']:
               change = product.get('price_change')
+              series = product.get('price_series')
               if change:
+                  price_changes += 1
                   assert change['direction'] in ('up', 'down')
                   assert change['current_price'] == product['price']
                   assert change['delta'] == change['current_price'] - change['previous_price']
                   assert change['provenance'] == 'snapshot'
-          print({'products': len(payload['products']), 'price_changes': sum(bool(p.get('price_change')) for p in payload['products'])})
+              if series:
+                  price_series += 1
+                  assert change, product.get('name')
+                  assert 2 <= len(series) <= 24
+                  assert series[-1]['price'] == product['price']
+                  assert len({point['price'] for point in series}) >= 2
+                  for point in series:
+                      assert set(point) == {'at', 'price'}
+                      assert isinstance(point['at'], str) and point['at']
+                      assert isinstance(point['price'], int)
+          assert price_series > 0
+          print({'products': len(payload['products']), 'price_changes': price_changes, 'price_series': price_series})
           PY
 
       - name: Verify public storage-fit assets

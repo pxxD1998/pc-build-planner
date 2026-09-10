@@ -57,7 +57,44 @@
 
   const byKey = new Map(products.map(p => [keyFor(p), p]));
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function escapeAttr(value) { return escapeHtml(value); }
   function priceText(value) { return money.format(Number(value || 0)).replace(/^TWD\s*/, 'NT$'); }
+
+  function referenceImageFor(p) {
+    const categoryId = String(p?.category_id ?? '');
+    const name = String(p?.name || '');
+    if (categoryId === '5' && /PRIME\s+B860M-A-CSM/i.test(name)) {
+      return 'https://coolpc.coolpc.com.tw/eval/5/asusb860macsm.jpg';
+    }
+    if (categoryId !== '6' || !/DDR5/i.test(name)) return '';
+    if (/UMAX/i.test(name)) {
+      if (/\bNB\b/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/umaxnbddr5.jpg';
+      if (/(?:雙通|\*2|×2)/i.test(name) && /散熱片/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/umaxddr5x2xmp.jpg';
+      return 'https://coolpc.coolpc.com.tw/eval/6/umaxddr5xmp.jpg';
+    }
+    if (/(?:威剛|ADATA)/i.test(name)) {
+      if (/LancerBlade/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/xpglancerbladed5s.jpg';
+      return 'https://coolpc.coolpc.com.tw/eval/6/adatad5.jpg';
+    }
+    if (/(?:金士頓|Kingston)/i.test(name)) {
+      if (/(?:FURY|獸獵者)/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/kingstond5fury.jpg';
+      return 'https://coolpc.coolpc.com.tw/eval/6/kingstonddr5.jpg';
+    }
+    if (/(?:KLEVV|科賦)/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/klevvddr5.jpg';
+    if (/(?:美光|Micron|Crucial)/i.test(name)) return 'https://coolpc.coolpc.com.tw/eval/6/micronddr5.jpg';
+    return '';
+  }
+
+  function priceSparklineHtml(down) {
+    const startY = down ? 5 : 25;
+    const endY = down ? 25 : 5;
+    return `<svg class="price-history-sparkline" viewBox="0 0 96 30" role="img" aria-label="最近一次可驗證價格${down ? '下降' : '上升'}">
+      <line class="price-history-baseline" x1="4" y1="28" x2="92" y2="28"></line>
+      <path class="price-history-trend" d="M4 ${startY} L92 ${endY}"></path>
+      <circle class="price-history-point" cx="4" cy="${startY}" r="2.5"></circle>
+      <circle class="price-history-point is-current" cx="92" cy="${endY}" r="3"></circle>
+    </svg>`;
+  }
 
   function priceChangeHtml(change) {
     if (!change || !['up', 'down'].includes(change.direction)) return '';
@@ -68,12 +105,15 @@
     const pct = Number(change.delta_pct);
     const pctText = Number.isFinite(pct) ? `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%` : '';
     const date = String(change.changed_at || '').slice(0, 10);
-    return `<div class="price-history ${down ? 'is-down' : 'is-up'}" title="由 PC Build Planner 的歷史 snapshot 計算，並非原價屋狀態標籤">
-      <div class="price-history-label">${label}</div>
-      <div class="price-history-route">${escapeHtml(priceText(previous))} → ${escapeHtml(priceText(current))}</div>
-      <div class="price-history-delta">${arrow} ${escapeHtml(priceText(Math.abs(delta)))}${pctText ? ` · ${escapeHtml(pctText)}` : ''}</div>
-      ${date ? `<div class="price-history-date">${escapeHtml(date)}</div>` : ''}
-      <div class="price-history-source">snapshot</div>
+    return `<div class="price-history ${down ? 'is-down' : 'is-up'}" title="最近一次由 PC Build Planner 歷史 snapshot 驗證的價格變化；折線只畫真實前值與現值，不補造中間資料">
+      ${priceSparklineHtml(down)}
+      <div class="price-history-copy">
+        <div class="price-history-label">${label}</div>
+        <div class="price-history-route">${escapeHtml(priceText(previous))} → ${escapeHtml(priceText(current))}</div>
+        <div class="price-history-delta">${arrow} ${escapeHtml(priceText(Math.abs(delta)))}${pctText ? ` · ${escapeHtml(pctText)}` : ''}</div>
+        ${date ? `<div class="price-history-date">${escapeHtml(date)}</div>` : ''}
+        <div class="price-history-source">snapshot</div>
+      </div>
     </div>`;
   }
 
@@ -96,6 +136,36 @@
     });
   }
 
+  function ensureReferenceImage(nameCell, p) {
+    if (!nameCell || nameCell.querySelector('.catalog-product-media')) return;
+    const imageUrl = referenceImageFor(p);
+    if (!imageUrl) return;
+
+    const media = document.createElement('div');
+    media.className = 'catalog-product-media';
+    const figure = document.createElement('figure');
+    figure.className = 'product-reference-image';
+    figure.title = '原價屋參考圖片';
+    const image = document.createElement('img');
+    image.src = imageUrl;
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    figure.appendChild(image);
+
+    const copy = document.createElement('div');
+    copy.className = 'catalog-product-copy';
+    while (nameCell.firstChild) copy.appendChild(nameCell.firstChild);
+    media.append(figure, copy);
+    nameCell.appendChild(media);
+
+    image.addEventListener('error', () => {
+      figure.remove();
+      media.classList.add('image-unavailable');
+    }, { once: true });
+  }
+
   let decorating = false;
   const observer = new MutationObserver(() => { if (!decorating) queueMicrotask(decorate); });
   function decorate() {
@@ -114,6 +184,7 @@
         row.classList.add('catalog-product-row');
         const nameCell = row.querySelector('td.name');
         if (nameCell) {
+          ensureReferenceImage(nameCell, p);
           const statusHtml = sourceStatusHtml(statusFor(p));
           if (statusHtml && !nameCell.querySelector('.source-status')) {
             const line = nameCell.querySelector('.name-line');

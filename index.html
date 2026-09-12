@@ -17,6 +17,18 @@
   <link rel="stylesheet" href="back-to-top.css" />
   <link rel="stylesheet" href="mobile-build.css" />
   <link rel="stylesheet" href="saved-builds.css" />
+  <style>
+    .psu-advanced-filters { margin: 0 18px 12px; padding: 10px 12px; border: 1px solid var(--line, #27313d); border-radius: 10px; }
+    .psu-advanced-filters > summary { cursor: pointer; font-weight: 700; }
+    .psu-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+    .psu-filter-grid label { display: grid; gap: 4px; font-size: 12px; color: var(--muted, #9aa6b2); }
+    .psu-filter-grid select, .psu-filter-grid input[type="number"] { width: 100%; min-width: 0; }
+    .psu-filter-checks { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+    .psu-filter-checks label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+    .psu-filter-note { margin: 8px 0 0; font-size: 12px; color: var(--muted, #9aa6b2); }
+    .psu-filter-unavailable { opacity: .48; }
+    @media (max-width: 700px) { .psu-advanced-filters { margin-inline: 10px; } .psu-filter-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -55,6 +67,48 @@
         </select>
         <button id="resetFilters" class="ghost">重設篩選</button>
       </div>
+
+      <details class="psu-advanced-filters" id="psuAdvancedFilters" hidden>
+        <summary>PSU 進階篩選</summary>
+        <div class="psu-filter-grid">
+          <label>最低瓦數
+            <input id="psuMinWattage" type="number" min="0" step="50" placeholder="例如 850" />
+          </label>
+          <label>效率牌級
+            <select id="psuEfficiency">
+              <option value="">不限</option><option value="bronze">銅牌</option><option value="silver">銀牌</option><option value="gold">金牌</option><option value="platinum">白金</option><option value="titanium">鈦金</option>
+            </select>
+          </label>
+          <label>模組化
+            <select id="psuModularity">
+              <option value="">不限</option><option value="full">全模組</option><option value="semi">半模組</option><option value="non">直出線</option>
+            </select>
+          </label>
+          <label>ATX 規範
+            <select id="psuAtxVersion"><option value="">不限</option><option value="3.0">ATX 3.0</option><option value="3.1">ATX 3.1</option></select>
+          </label>
+          <label>PCIe 電源規範
+            <select id="psuPcieVersion"><option value="">不限</option><option value="5.0">PCIe 5.0</option><option value="5.1">PCIe 5.1</option></select>
+          </label>
+          <label>電源尺寸
+            <select id="psuFormFactor"><option value="">不限</option><option value="SFX">SFX</option><option value="SFX-L">SFX-L</option></select>
+          </label>
+          <label data-psu-field="japanese_capacitors">日系電容
+            <select id="psuJapaneseCaps"><option value="">不限</option><option value="japanese">主日系或全日系</option><option value="all">只看全日系</option></select>
+          </label>
+          <label data-psu-field="warranty_years">最低保固
+            <input id="psuMinWarranty" type="number" min="0" max="20" step="1" placeholder="例如 10 年" />
+          </label>
+        </div>
+        <div class="psu-filter-checks">
+          <label data-psu-field="dc_dc"><input id="psuDcDc" type="checkbox" /> 明列 DC-DC</label>
+          <label data-psu-field="llc"><input id="psuLlc" type="checkbox" /> 明列 LLC</label>
+          <label data-psu-field="zero_rpm"><input id="psuZeroRpm" type="checkbox" /> 明列停轉 / 0 RPM</label>
+          <label><input id="psuExclude220v" type="checkbox" /> 排除明列「限 220V」</label>
+        </div>
+        <p class="psu-filter-note">只依原價屋商品列中的明確文字篩選；沒有寫出的規格維持未知，不自行推定。</p>
+      </details>
+
       <div class="result-summary">
         <div class="result-summary-left">
           <strong id="resultCount">0 項</strong>
@@ -79,6 +133,121 @@
 
   <script src="data/products.js"></script>
   <script src="app.js"></script>
+  <script>
+    (() => {
+      'use strict';
+
+      const DATA = window.COOLPC_DATA || { products: [] };
+      const products = Array.isArray(DATA.products) ? DATA.products : [];
+      const panel = document.getElementById('psuAdvancedFilters');
+      const rows = document.getElementById('rows');
+      const count = document.getElementById('resultCount');
+      const empty = document.getElementById('empty');
+      const categorySelect = document.getElementById('categorySelect');
+      const controls = [
+        'psuMinWattage', 'psuEfficiency', 'psuModularity', 'psuAtxVersion',
+        'psuPcieVersion', 'psuFormFactor', 'psuJapaneseCaps', 'psuMinWarranty',
+        'psuDcDc', 'psuLlc', 'psuZeroRpm', 'psuExclude220v'
+      ].map(id => document.getElementById(id)).filter(Boolean);
+
+      function productKey(product) {
+        if (product?.public_id) return `${product.category_id ?? ''}:${product.public_id}`;
+        return `${product?.category_id ?? ''}:${product?.source_value ?? ''}:${product?.raw_text ?? ''}`;
+      }
+
+      const productByKey = new Map(products.map(product => [productKey(product), product]));
+
+      function specsOf(product) {
+        return product && product.specs && typeof product.specs === 'object' && !Array.isArray(product.specs)
+          ? product.specs : {};
+      }
+
+      function hasField(field) {
+        return products.some(product => String(product.category_id) === '15' && specsOf(product)[field] !== undefined);
+      }
+
+      function refreshAvailability() {
+        panel.querySelectorAll('[data-psu-field]').forEach(wrapper => {
+          const field = wrapper.dataset.psuField;
+          const available = hasField(field);
+          wrapper.classList.toggle('psu-filter-unavailable', !available);
+          wrapper.querySelectorAll('input, select').forEach(control => {
+            control.disabled = !available;
+            if (!available) {
+              if (control.type === 'checkbox') control.checked = false;
+              else control.value = '';
+            }
+          });
+          wrapper.title = available ? '' : '目前資料尚未產生此欄位；下一次資料更新後自動啟用';
+        });
+      }
+
+      function matches(specs) {
+        const minWattage = Number(document.getElementById('psuMinWattage').value || 0);
+        const efficiency = document.getElementById('psuEfficiency').value;
+        const modularity = document.getElementById('psuModularity').value;
+        const atx = document.getElementById('psuAtxVersion').value;
+        const pcie = document.getElementById('psuPcieVersion').value;
+        const formFactor = document.getElementById('psuFormFactor').value;
+        const caps = document.getElementById('psuJapaneseCaps').value;
+        const minWarranty = Number(document.getElementById('psuMinWarranty').value || 0);
+
+        if (minWattage && (!Number.isFinite(Number(specs.wattage_w)) || Number(specs.wattage_w) < minWattage)) return false;
+        if (efficiency && specs.efficiency_tier !== efficiency) return false;
+        if (modularity && specs.modularity !== modularity) return false;
+        if (atx && specs.atx_version !== atx) return false;
+        if (pcie && specs.pcie_power_version !== pcie) return false;
+        if (formFactor && specs.psu_form_factor !== formFactor) return false;
+        if (caps === 'japanese' && !['main', 'all'].includes(specs.japanese_capacitors)) return false;
+        if (caps === 'all' && specs.japanese_capacitors !== 'all') return false;
+        if (minWarranty && (!Number.isFinite(Number(specs.warranty_years)) || Number(specs.warranty_years) < minWarranty)) return false;
+        if (document.getElementById('psuDcDc').checked && specs.dc_dc !== true) return false;
+        if (document.getElementById('psuLlc').checked && specs.llc !== true) return false;
+        if (document.getElementById('psuZeroRpm').checked && specs.zero_rpm !== true) return false;
+        if (document.getElementById('psuExclude220v').checked && specs.requires_220v === true) return false;
+        return true;
+      }
+
+      function apply() {
+        const isPsu = categorySelect?.value === '15';
+        panel.hidden = !isPsu;
+        if (!isPsu) return;
+
+        let visible = 0;
+        rows.querySelectorAll('tr[data-key]').forEach(row => {
+          const product = productByKey.get(row.dataset.key);
+          const show = Boolean(product && matches(specsOf(product)));
+          row.hidden = !show;
+          if (show) visible += 1;
+        });
+        count.textContent = `${visible.toLocaleString()} 項`;
+        empty.hidden = visible !== 0;
+      }
+
+      function resetPsuFilters() {
+        controls.forEach(control => {
+          if (control.type === 'checkbox') control.checked = false;
+          else control.value = '';
+        });
+        apply();
+      }
+
+      controls.forEach(control => {
+        const eventName = control.type === 'number' ? 'input' : 'change';
+        control.addEventListener(eventName, apply);
+      });
+
+      document.getElementById('resetFilters')?.addEventListener('click', () => queueMicrotask(resetPsuFilters));
+      categorySelect?.addEventListener('change', () => queueMicrotask(apply));
+      document.getElementById('categories')?.addEventListener('click', () => queueMicrotask(apply));
+
+      const observer = new MutationObserver(() => queueMicrotask(apply));
+      observer.observe(rows, { childList: true });
+
+      refreshAvailability();
+      apply();
+    })();
+  </script>
   <script src="catalog-fidelity.js"></script>
   <script src="saved-builds.js"></script>
   <script src="storage-fit.js"></script>

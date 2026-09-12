@@ -258,7 +258,6 @@ jobs:
           grep -Fq '未涵蓋視為未知，不當成 0' storage-fit.js
           grep -Fq '原廠 M.2 ×' app.js
           grep -Fq '原廠 SATA ×' app.js
-          grep -Fq '"specs_version":8' data/products.js
           python - <<'PY'
           import json
           from pathlib import Path
@@ -267,6 +266,8 @@ jobs:
           prefix = 'window.COOLPC_DATA = '
           assert raw.startswith(prefix)
           payload = json.loads(raw[len(prefix):].removesuffix(';\n'))
+          schema_version = int(payload.get('meta', {}).get('specs_version', 0))
+          assert schema_version >= 8, schema_version
           boards = [p for p in payload['products'] if str(p.get('category_id')) == '5']
           known = []
           unknown = []
@@ -287,7 +288,7 @@ jobs:
           # Generic snapshot provenance is public-safe; manufacturer provenance remains private.
           for forbidden in ('manufacturer_url', 'retrieved_at', 'adapter_version', 'source_value', 'raw_text', 'source_css_class'):
               assert forbidden not in serialized, forbidden
-          print({'motherboards': len(boards), 'known': len(known), 'unknown': len(unknown)})
+          print({'motherboards': len(boards), 'known': len(known), 'unknown': len(unknown), 'specs_version': schema_version})
           PY
 
       - name: Publish public main when output changed

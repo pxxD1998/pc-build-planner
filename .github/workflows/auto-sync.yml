@@ -255,7 +255,11 @@ jobs:
           grep -Fq '未列資料視為未知，不當成 0' storage-fit.js
           grep -Fq '主機板儲存連接' storage-fit.js
           grep -Fq '原廠資料未涵蓋' storage-fit.js
-          grep -Fq '未涵蓋視為未知，不當成 0' storage-fit.js
+          grep -Fq '未建模或未涵蓋的事實仍視為未知，不當成 0' storage-fit.js
+          grep -Fq 'sharing_rules_force_sata_shortage' storage-fit.js
+          grep -Fq 'conditional_m2_capacity_rules' storage-fit.js
+          grep -Fq 'sata_accessory_rules' storage-fit.js
+          grep -Fq '必要條件' storage-fit.js
           grep -Fq '原廠 M.2 ×' app.js
           grep -Fq '原廠 SATA ×' app.js
           python - <<'PY'
@@ -271,12 +275,36 @@ jobs:
           boards = [p for p in payload['products'] if str(p.get('category_id')) == '5']
           known = []
           unknown = []
+          typed_conditions = 0
+          accessory_rules = 0
+          structured_sharing = 0
           for board in boards:
               storage = (board.get('specs') or {}).get('motherboard_storage')
               assert isinstance(storage, dict), board.get('name')
               if storage.get('state') == 'known':
                   assert isinstance(storage.get('m2_slot_count'), int)
                   assert isinstance(storage.get('sata_port_count'), int)
+                  rules = storage.get('conditional_m2_capacity_rules', [])
+                  assert isinstance(rules, list), board.get('name')
+                  for rule in rules:
+                      assert rule.get('effect') == 'slot_unavailable', rule
+                      assert isinstance(rule.get('slot'), str) and rule['slot'], rule
+                      assert isinstance(rule.get('cpu_families'), list) and rule['cpu_families'], rule
+                      typed_conditions += 1
+                  accessories = storage.get('sata_accessory_rules', [])
+                  assert isinstance(accessories, list), board.get('name')
+                  for rule in accessories:
+                      assert rule.get('effect') == 'sata_ports_available_if_accessory_installed', rule
+                      assert isinstance(rule.get('accessory'), str) and rule['accessory'], rule
+                      assert isinstance(rule.get('ports_available'), int), rule
+                      accessory_rules += 1
+                  sharing = storage.get('storage_sharing_rules', [])
+                  assert isinstance(sharing, list), board.get('name')
+                  for rule in sharing:
+                      assert rule.get('trigger') in ('any_m2', 'sata_m2'), rule
+                      assert isinstance(rule.get('when_slot_occupied'), str) and rule['when_slot_occupied'], rule
+                      assert isinstance(rule.get('disables'), str) and rule['disables'], rule
+                      structured_sharing += 1
                   known.append(board)
               elif storage.get('state') == 'unknown':
                   assert 'm2_slot_count' not in storage
@@ -288,7 +316,15 @@ jobs:
           # Generic snapshot provenance is public-safe; manufacturer provenance remains private.
           for forbidden in ('manufacturer_url', 'retrieved_at', 'adapter_version', 'source_value', 'raw_text', 'source_css_class'):
               assert forbidden not in serialized, forbidden
-          print({'motherboards': len(boards), 'known': len(known), 'unknown': len(unknown), 'specs_version': schema_version})
+          print({
+              'motherboards': len(boards),
+              'known': len(known),
+              'unknown': len(unknown),
+              'specs_version': schema_version,
+              'typed_conditions': typed_conditions,
+              'accessory_rules': accessory_rules,
+              'structured_sharing': structured_sharing,
+          })
           PY
 
       - name: Publish public main when output changed

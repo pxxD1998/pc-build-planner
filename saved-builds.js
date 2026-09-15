@@ -232,38 +232,74 @@
 
   function setupImportAction() {
     const actions = $('.build-actions');
+    const buildHead = $('.build-head');
     const exportButton = $('#exportBuild');
-    if (!actions || !exportButton || $('#importBuild')) return;
+    const copyNamesButton = $('#copyBuildNames');
+    const copyTextButton = $('#copyBuild');
+    if (!actions || !buildHead || !exportButton || !copyNamesButton || !copyTextButton) return;
 
-    const button = document.createElement('button');
-    button.id = 'importBuild';
-    button.type = 'button';
-    button.className = 'secondary';
-    button.textContent = '匯入 JSON';
-    button.title = '載入由 PC Build Planner 匯出的 JSON 配單';
+    let importButton = $('#importBuild');
+    let input = $('#importBuildFile');
 
-    const input = document.createElement('input');
-    input.id = 'importBuildFile';
-    input.type = 'file';
-    input.accept = '.json,application/json';
-    input.hidden = true;
+    if (!importButton) {
+      importButton = document.createElement('button');
+      importButton.id = 'importBuild';
+      importButton.type = 'button';
+      importButton.className = 'secondary';
+      importButton.textContent = '匯入 JSON';
+      importButton.title = '載入由 PC Build Planner 匯出的 JSON 配單';
+    }
 
-    button.addEventListener('click', () => {
-      input.value = '';
-      input.click();
-    });
-    input.addEventListener('change', () => {
-      const file = input.files?.[0];
-      if (file) importBuildFile(file);
-    });
+    if (!input) {
+      input = document.createElement('input');
+      input.id = 'importBuildFile';
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.hidden = true;
 
-    actions.insertBefore(button, exportButton);
-    actions.appendChild(input);
+      importButton.addEventListener('click', () => {
+        input.value = '';
+        input.click();
+      });
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (file) importBuildFile(file);
+      });
+    }
+
+    // File actions first, copy actions second. Keep the original button nodes so
+    // their app.js click handlers remain intact.
+    actions.replaceChildren(importButton, exportButton, copyNamesButton, copyTextButton, input);
+    buildHead.insertAdjacentElement('afterend', actions);
+    actions.setAttribute('aria-label', '配單工具');
 
     const style = document.createElement('style');
     style.textContent = `
-      .build-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      @media (max-width: 360px) { .build-actions { grid-template-columns: 1fr; } }
+      .build > .build-actions {
+        flex: 0 0 auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        background: #10171e;
+        z-index: 2;
+      }
+      .build > .build-actions button {
+        min-width: 0;
+        padding: 9px 8px;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      @media (max-width: 840px) {
+        .build > .build-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      }
+      @media (max-width: 560px) {
+        .build > .build-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 360px) {
+        .build > .build-actions { grid-template-columns: 1fr; }
+      }
     `;
     document.head.appendChild(style);
   }

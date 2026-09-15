@@ -60,3 +60,5 @@
 
   updateVisibility();
 })();
+
+import('./ui-refresh.js');

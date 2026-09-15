@@ -166,6 +166,108 @@
     location.reload();
   }
 
+  function importedBuildFromPayload(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new Error('這不是有效的 PC Build Planner JSON。');
+    }
+
+    const version = Number(payload.schema_version ?? BUILD_SCHEMA_VERSION);
+    if (!Number.isInteger(version) || version < 1) {
+      throw new Error('JSON 的 schema_version 無效。');
+    }
+    if (version > BUILD_SCHEMA_VERSION) {
+      throw new Error(`此配單格式版本為 v${version}，目前網頁只支援到 v${BUILD_SCHEMA_VERSION}。`);
+    }
+
+    const importedBuild = payload.build;
+    if (!importedBuild || typeof importedBuild !== 'object' || Array.isArray(importedBuild)) {
+      throw new Error('JSON 裡找不到有效的 build 配單資料。');
+    }
+
+    for (const [categoryId, value] of Object.entries(importedBuild)) {
+      if (!String(categoryId).trim()) throw new Error('JSON 內含無效的商品分類。');
+      if (!Array.isArray(value) && (!value || typeof value !== 'object')) {
+        throw new Error(`分類 ${categoryId} 的配單資料格式無效。`);
+      }
+    }
+
+    return importedBuild;
+  }
+
+  async function importBuildFile(file) {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('匯入失敗：JSON 檔案超過 10 MB，這不像一般的配單檔案。');
+      return;
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(await file.text());
+    } catch {
+      alert('匯入失敗：檔案不是有效的 JSON。');
+      return;
+    }
+
+    let importedBuild;
+    try {
+      importedBuild = importedBuildFromPayload(payload);
+    } catch (error) {
+      alert(`匯入失敗：${error.message || '配單格式無效。'}`);
+      return;
+    }
+
+    if (currentEntries().length) {
+      const confirmed = confirm('匯入 JSON 會取代「目前配單」。若目前配單尚未暫存或匯出，變更會消失。確定匯入嗎？');
+      if (!confirmed) return;
+    }
+
+    try { localStorage.setItem(BUILD_KEY, JSON.stringify(importedBuild)); }
+    catch {
+      alert('匯入配單失敗：瀏覽器儲存空間不可用。');
+      return;
+    }
+    location.reload();
+  }
+
+  function setupImportAction() {
+    const actions = $('.build-actions');
+    const exportButton = $('#exportBuild');
+    if (!actions || !exportButton || $('#importBuild')) return;
+
+    const button = document.createElement('button');
+    button.id = 'importBuild';
+    button.type = 'button';
+    button.className = 'secondary';
+    button.textContent = '匯入 JSON';
+    button.title = '載入由 PC Build Planner 匯出的 JSON 配單';
+
+    const input = document.createElement('input');
+    input.id = 'importBuildFile';
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.hidden = true;
+
+    button.addEventListener('click', () => {
+      input.value = '';
+      input.click();
+    });
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (file) importBuildFile(file);
+    });
+
+    actions.insertBefore(button, exportButton);
+    actions.appendChild(input);
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .build-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      @media (max-width: 360px) { .build-actions { grid-template-columns: 1fr; } }
+    `;
+    document.head.appendChild(style);
+  }
+
   function renameSavedBuild(snapshotId) {
     const savedBuilds = readSavedBuilds();
     const snapshot = savedBuilds.find(item => item.id === snapshotId);
@@ -257,6 +359,7 @@
   const buildItems = $('#buildItems');
   if (buildItems) new MutationObserver(updateCurrentBuildButtons).observe(buildItems, { childList: true, subtree: true });
 
+  setupImportAction();
   renderSavedBuilds();
   updateCurrentBuildButtons();
 })();

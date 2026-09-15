@@ -267,38 +267,100 @@
       });
     }
 
-    // File actions first, copy actions second. Keep the original button nodes so
-    // their app.js click handlers remain intact.
     actions.replaceChildren(importButton, exportButton, copyNamesButton, copyTextButton, input);
-    buildHead.insertAdjacentElement('afterend', actions);
     actions.setAttribute('aria-label', '配單工具');
+    actions.hidden = true;
+
+    let toggle = $('#buildToolsToggle');
+    if (!toggle) {
+      toggle = document.createElement('button');
+      toggle.id = 'buildToolsToggle';
+      toggle.type = 'button';
+      toggle.className = 'ghost build-tools-toggle';
+      toggle.textContent = '工具';
+      toggle.setAttribute('aria-haspopup', 'menu');
+      toggle.setAttribute('aria-expanded', 'false');
+      buildHead.appendChild(toggle);
+    }
+    buildHead.appendChild(actions);
+
+    const closeMenu = () => {
+      actions.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    };
+    const openMenu = () => {
+      actions.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+    };
+
+    toggle.addEventListener('click', event => {
+      event.stopPropagation();
+      if (actions.hidden) openMenu();
+      else closeMenu();
+    });
+    actions.addEventListener('click', event => event.stopPropagation());
+    actions.querySelectorAll('button').forEach(button => {
+      button.addEventListener('click', () => closeMenu());
+    });
+    document.addEventListener('click', event => {
+      if (!buildHead.contains(event.target)) closeMenu();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeMenu();
+    });
 
     const style = document.createElement('style');
     style.textContent = `
-      .build > .build-actions {
-        flex: 0 0 auto;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 7px;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-        background: #10171e;
-        z-index: 2;
+      .build-head {
+        position: relative;
+        overflow: visible;
       }
-      .build > .build-actions button {
+      .build-head .build-tools-toggle {
+        flex: 0 0 auto;
+        padding: 7px 10px;
+        font-size: 10px;
+        line-height: 1.1;
+      }
+      .build-head > .build-actions {
+        position: absolute;
+        top: calc(100% - 4px);
+        right: 10px;
+        width: min(210px, calc(100% - 20px));
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 5px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #111820;
+        box-shadow: 0 14px 34px rgba(0, 0, 0, .38);
+        z-index: 80;
+      }
+      .build-head > .build-actions[hidden] {
+        display: none !important;
+      }
+      .build-head > .build-actions button {
+        width: 100%;
         min-width: 0;
-        padding: 9px 8px;
+        padding: 9px 10px;
+        border-color: #2b3744;
+        background: #151d26;
+        color: #dbe5ef;
         font-size: 11px;
+        text-align: left;
         white-space: nowrap;
       }
+      .build-head > .build-actions button:hover {
+        background: #1c2732;
+        border-color: #3b4b5c;
+        color: #fff;
+        filter: none;
+      }
       @media (max-width: 840px) {
-        .build > .build-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-      }
-      @media (max-width: 560px) {
-        .build > .build-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      }
-      @media (max-width: 360px) {
-        .build > .build-actions { grid-template-columns: 1fr; }
+        .build-head > .build-actions {
+          right: 12px;
+          width: min(240px, calc(100vw - 40px));
+        }
       }
     `;
     document.head.appendChild(style);

@@ -37,6 +37,48 @@
   line-height:1;
 }
 
+.build-empty-card {
+  width:100%;
+  display:grid;
+  justify-items:center;
+  gap:7px;
+}
+
+.build-empty-icon {
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border:1px solid #2a465a;
+  border-radius:10px;
+  background:#0d1b27;
+  color:var(--accent);
+  font-size:22px;
+}
+
+.build-empty-card strong {
+  color:#dbe7ef;
+  font-size:12px;
+}
+
+.build-empty-card span {
+  max-width:240px;
+  color:#72889a;
+  font-size:10px;
+  line-height:1.55;
+}
+
+.build-empty-card button {
+  width:100%;
+  max-width:245px;
+  min-height:36px;
+  margin-top:4px;
+  border-color:#2f93c8;
+  background:linear-gradient(180deg,#1c6e9b,#165a80);
+  color:#edf9ff;
+  font-size:10px;
+}
+
 @media (max-width: 650px) {
   .back-to-top {
     min-height:28px;

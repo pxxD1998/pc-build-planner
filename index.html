@@ -27,7 +27,9 @@
     .psu-filter-checks label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
     .psu-filter-note { margin: 8px 0 0; font-size: 12px; color: var(--muted, #9aa6b2); }
     .psu-filter-unavailable { opacity: .48; }
+    .build-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     @media (max-width: 700px) { .psu-advanced-filters { margin-inline: 10px; } .psu-filter-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 650px) { .build-actions { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -126,13 +128,61 @@
       <div class="total"><div><span>總計</span><small id="totalItems">0 項</small></div><strong id="totalPrice">$0</strong></div>
       <div class="build-manage-actions"><button id="saveBuildSnapshot" type="button">暫存配單</button><button id="newBuild" type="button" class="secondary">清空全部</button></div>
       <details class="saved-builds" id="savedBuildsPanel"><summary>我的暫存配單 <span class="saved-build-count" id="savedBuildCount">(0)</span></summary><div class="saved-build-items" id="savedBuildItems"></div></details>
-      <div class="build-actions"><button id="copyBuild">複製文字</button><button id="exportBuild" class="secondary">匯出 JSON</button></div>
+      <div class="build-actions"><button id="copyBuildNames">複製品名</button><button id="copyBuild" class="secondary">複製文字</button><button id="exportBuild" class="secondary">匯出 JSON</button></div>
       <p class="source-note">獨立第三方工具，與原價屋 CoolPC 無隸屬、授權或合作關係。商品、價格、庫存、規格與相容性僅供參考，實際資訊請以原價屋與原廠當下資料為準。</p>
     </aside>
   </main>
 
   <script src="data/products.js"></script>
   <script src="app.js"></script>
+  <script>
+    (() => {
+      'use strict';
+
+      const button = document.getElementById('copyBuildNames');
+      const BUILD_KEY = 'pc-build-planner-build';
+      if (!button) return;
+
+      function productName(product) {
+        const brand = String(product?.brand ?? '').trim();
+        const name = String(product?.name ?? '').trim();
+        if (!brand) return name;
+        if (!name) return brand;
+        const brandKey = brand.toLocaleLowerCase('zh-Hant');
+        const nameKey = name.toLocaleLowerCase('zh-Hant');
+        return nameKey.startsWith(brandKey) ? name : `${brand} ${name}`;
+      }
+
+      function namesText() {
+        let build = {};
+        try { build = JSON.parse(localStorage.getItem(BUILD_KEY)) || {}; } catch {}
+        return Object.values(build)
+          .flatMap(value => Array.isArray(value) ? value : [value])
+          .map(entry => entry?.product && typeof entry.product === 'object' ? entry.product : entry)
+          .map(productName)
+          .filter(Boolean)
+          .join('\n');
+      }
+
+      async function copyText(text) {
+        try { await navigator.clipboard.writeText(text); }
+        catch {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          textarea.remove();
+        }
+      }
+
+      button.addEventListener('click', async () => {
+        await copyText(namesText());
+        button.textContent = '已複製';
+        setTimeout(() => { button.textContent = '複製品名'; }, 900);
+      });
+    })();
+  </script>
   <script>
     (() => {
       'use strict';

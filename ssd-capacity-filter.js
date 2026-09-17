@@ -10,7 +10,6 @@
   const resultCount = document.querySelector('#resultCount');
   const empty = document.querySelector('#empty');
   const categorySelect = document.querySelector('#categorySelect');
-  const sort = document.querySelector('#sort');
   const resetFilters = document.querySelector('#resetFilters');
 
   if (!toolbar || !rows || !resultCount || !empty || !categorySelect) return;
@@ -48,20 +47,46 @@
   }
 
   const capacities = [...capacityCounts.keys()].sort((a, b) => a - b);
+  const row = document.createElement('div');
+  row.className = 'ssd-capacity-row';
+  row.hidden = true;
+
   const select = document.createElement('select');
   select.id = 'capacityFilter';
   select.setAttribute('aria-label', 'SSD 容量');
-  select.title = 'SSD 容量';
+  select.title = '依 SSD 容量篩選';
   select.innerHTML = '<option value="">全部容量</option>' + capacities.map(capacity => {
     const count = capacityCounts.get(capacity) || 0;
-    return `<option value="${capacity}">${formatCapacity(capacity)} (${count})</option>`;
+    return `<option value="${capacity}">${formatCapacity(capacity)} · ${count} 項</option>`;
   }).join('');
 
-  if (sort && sort.parentNode === toolbar) toolbar.insertBefore(select, sort);
-  else toolbar.appendChild(select);
+  row.innerHTML = '<div class="ssd-capacity-label"><span>SSD</span><strong>容量</strong></div><div class="ssd-capacity-control"></div><div class="ssd-capacity-hint">先選容量，再用上方排序找最低價</div>';
+  row.querySelector('.ssd-capacity-control').appendChild(select);
+  toolbar.insertAdjacentElement('afterend', row);
 
   const style = document.createElement('style');
-  style.textContent = '.ssd-capacity-filtered-out{display:none!important;}';
+  style.textContent = `
+    .ssd-capacity-filtered-out{display:none!important}
+    .ssd-capacity-row[hidden]{display:none!important}
+    .ssd-capacity-row{
+      display:flex;align-items:center;gap:10px;min-width:0;padding:9px 12px 10px;
+      border-bottom:1px solid var(--line,#26313c);
+      background:linear-gradient(180deg,#10161c,#0e141a)
+    }
+    .ssd-capacity-label{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#aab6c2;font-size:11px}
+    .ssd-capacity-label span{padding:3px 6px;border:1px solid rgba(99,199,245,.28);border-radius:5px;background:rgba(99,199,245,.08);color:var(--accent,#63c7f5);font-size:9px;font-weight:900;letter-spacing:.08em}
+    .ssd-capacity-label strong{font-weight:800}
+    .ssd-capacity-control{width:190px;flex:0 0 auto}
+    #capacityFilter{height:34px;padding:6px 30px 6px 10px;border-color:#30404f;background:#0c1218;color:#d6e0e9;font-size:11px;font-weight:750;transition:border-color .12s ease,background .12s ease,box-shadow .12s ease,color .12s ease}
+    #capacityFilter:hover{border-color:#425769;background:#101820}
+    #capacityFilter.is-active{border-color:rgba(99,199,245,.58);background:rgba(99,199,245,.09);color:#eefaff;box-shadow:inset 0 0 0 1px rgba(99,199,245,.05)}
+    .ssd-capacity-hint{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#687787;font-size:10px}
+    @media(max-width:650px){
+      .ssd-capacity-row{gap:8px;padding:8px 10px 9px;flex-wrap:wrap}
+      .ssd-capacity-control{width:auto;flex:1 1 150px}
+      .ssd-capacity-hint{flex-basis:100%;padding-left:1px;font-size:9px}
+    }
+  `;
   document.head.appendChild(style);
 
   function isSsdCategory() {
@@ -70,8 +95,9 @@
 
   function syncControl() {
     const visible = isSsdCategory();
-    select.hidden = !visible;
+    row.hidden = !visible;
     if (!visible) select.value = '';
+    select.classList.toggle('is-active', Boolean(select.value));
   }
 
   function applyCapacityFilter() {
@@ -81,11 +107,11 @@
     const selectedCapacity = Number(select.value || 0);
     let visible = 0;
 
-    rows.querySelectorAll('tr[data-key]').forEach(row => {
-      const product = productByKey.get(row.dataset.key);
+    rows.querySelectorAll('tr[data-key]').forEach(tableRow => {
+      const product = productByKey.get(tableRow.dataset.key);
       const matchesCapacity = !selectedCapacity || capacityOf(product) === selectedCapacity;
-      row.classList.toggle('ssd-capacity-filtered-out', !matchesCapacity);
-      if (matchesCapacity && !row.hidden) visible += 1;
+      tableRow.classList.toggle('ssd-capacity-filtered-out', !matchesCapacity);
+      if (matchesCapacity && !tableRow.hidden) visible += 1;
     });
 
     resultCount.textContent = `${visible.toLocaleString()} 項`;

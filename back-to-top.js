@@ -60,3 +60,14 @@
 
   updateVisibility();
 })();
+
+(() => {
+  'use strict';
+
+  if (document.querySelector('script[data-ssd-capacity-filter]')) return;
+  const script = document.createElement('script');
+  script.src = 'ssd-capacity-filter.js';
+  script.dataset.ssdCapacityFilter = 'true';
+  script.async = false;
+  document.head.appendChild(script);
+})();

@@ -1,0 +1,135 @@
+.category-specific-filtered-out { display: none !important; }
+
+.category-specific-filters[hidden] { display: none !important; }
+
+.category-specific-filters {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 10px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #10161c, #0e141a);
+}
+
+.csf-heading {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #aab6c2;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.csf-heading strong { font-weight: 800; }
+
+.csf-badge {
+  min-width: 32px;
+  padding: 3px 6px;
+  border: 1px solid rgba(99,199,245,.28);
+  border-radius: 5px;
+  background: rgba(99,199,245,.08);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-align: center;
+}
+
+.csf-controls {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding-bottom: 1px;
+}
+
+.csf-field {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 3px;
+  min-width: 112px;
+}
+
+.csf-field:has(input[type="number"]) { min-width: 126px; }
+
+.csf-label {
+  color: #687787;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding-left: 1px;
+  white-space: nowrap;
+}
+
+.csf-field select,
+.csf-field input {
+  height: 34px;
+  min-width: 0;
+  padding: 6px 28px 6px 9px;
+  border-color: #30404f;
+  background: #0c1218;
+  color: #d6e0e9;
+  font-size: 11px;
+  font-weight: 720;
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease, color .12s ease;
+}
+
+.csf-field input { padding-right: 9px; }
+
+.csf-field select:hover,
+.csf-field input:hover {
+  border-color: #425769;
+  background: #101820;
+}
+
+.csf-field select.is-active,
+.csf-field input.is-active {
+  border-color: rgba(99,199,245,.58);
+  background: rgba(99,199,245,.09);
+  color: #eefaff;
+  box-shadow: inset 0 0 0 1px rgba(99,199,245,.05);
+}
+
+.csf-field.is-active .csf-label { color: var(--accent); }
+
+.csf-clear {
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 6px 10px;
+  border-color: #30404f;
+  background: transparent;
+  color: #8392a1;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.csf-clear:hover {
+  background: #18212a;
+  color: #dbe6ef;
+  filter: none;
+}
+
+.category-specific-filters.has-active {
+  box-shadow: inset 3px 0 0 rgba(99,199,245,.5);
+}
+
+@media (max-width: 650px) {
+  .category-specific-filters {
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px 10px 9px;
+  }
+
+  .csf-heading strong { display: none; }
+  .csf-controls { gap: 6px; }
+  .csf-field { min-width: 108px; }
+  .csf-field:has(input[type="number"]) { min-width: 120px; }
+  .csf-label { font-size: 8px; }
+  .csf-clear { padding-inline: 8px; }
+}

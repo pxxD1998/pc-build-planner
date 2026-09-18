@@ -151,6 +151,7 @@
     <div class="csf-heading">
       <span class="csf-badge" id="csfBadge">SPEC</span>
       <strong>專屬篩選</strong>
+      <span class="csf-active-count" id="csfActiveCount">未套用</span>
     </div>
     <div class="csf-controls" id="csfControls"></div>
     <button class="csf-clear" id="csfClear" type="button" hidden>清除</button>
@@ -160,6 +161,7 @@
   const controlsHost = panel.querySelector('#csfControls');
   const badge = panel.querySelector('#csfBadge');
   const clearButton = panel.querySelector('#csfClear');
+  const activeCount = panel.querySelector('#csfActiveCount');
 
   let renderedCategory = null;
   let activeFields = [];
@@ -262,7 +264,12 @@
       control.closest('.csf-field')?.classList.toggle('is-active', active);
       any ||= active;
     }
+    const count = activeFields.reduce((sum, field) => sum + (String(controlValue(field)).trim() !== '' ? 1 : 0), 0);
     clearButton.hidden = !any;
+    if (activeCount) {
+      activeCount.textContent = any ? `已套用 ${count}` : '未套用';
+      activeCount.classList.toggle('is-active', any);
+    }
     panel.classList.toggle('has-active', any);
   }
 

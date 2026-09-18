@@ -5,30 +5,35 @@
 .category-specific-filters {
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
-  padding: 9px 12px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #10161c, #0e141a);
+  background:
+    linear-gradient(180deg, rgba(19, 26, 33, .96), rgba(14, 20, 26, .96));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
 }
 
 .csf-heading {
-  flex: 0 0 auto;
-  display: inline-flex;
+  flex: 0 0 104px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr 1fr;
   align-items: center;
-  gap: 7px;
+  column-gap: 7px;
+  padding-right: 10px;
+  border-right: 1px solid #202a34;
   color: #aab6c2;
-  font-size: 11px;
   white-space: nowrap;
 }
 
-.csf-heading strong { font-weight: 800; }
-
 .csf-badge {
-  min-width: 32px;
-  padding: 3px 6px;
-  border: 1px solid rgba(99,199,245,.28);
-  border-radius: 5px;
+  grid-row: 1 / 3;
+  min-width: 35px;
+  padding: 4px 6px;
+  border: 1px solid rgba(99,199,245,.30);
+  border-radius: 6px;
   background: rgba(99,199,245,.08);
   color: var(--accent);
   font-size: 9px;
@@ -37,99 +42,197 @@
   text-align: center;
 }
 
+.csf-heading strong {
+  align-self: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #c1ccd7;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.csf-active-count {
+  align-self: start;
+  color: #617181;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.csf-active-count.is-active { color: var(--accent); }
+
 .csf-controls {
   min-width: 0;
   flex: 1 1 auto;
   display: flex;
-  align-items: end;
+  align-items: stretch;
   gap: 7px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
+  scroll-snap-type: x proximity;
   padding-bottom: 1px;
 }
 
-.csf-field {
-  flex: 0 0 auto;
-  display: grid;
-  gap: 3px;
-  min-width: 112px;
+.csf-controls::-webkit-scrollbar { height: 5px; }
+.csf-controls::-webkit-scrollbar-thumb {
+  background: #2d3946;
+  border-radius: 99px;
 }
 
-.csf-field:has(input[type="number"]) { min-width: 126px; }
+.csf-field {
+  position: relative;
+  flex: 0 0 122px;
+  min-width: 122px;
+  height: 42px;
+  scroll-snap-align: start;
+  border: 1px solid #2a3743;
+  border-radius: 9px;
+  background: #0b1015;
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
+}
+
+.csf-field:has(input[type="number"]) {
+  flex-basis: 132px;
+  min-width: 132px;
+}
+
+.csf-field:hover {
+  border-color: #3b4c5d;
+  background: #0e151c;
+}
+
+.csf-field.is-active {
+  border-color: rgba(99,199,245,.58);
+  background: linear-gradient(180deg, rgba(99,199,245,.10), rgba(99,199,245,.055));
+  box-shadow: inset 0 0 0 1px rgba(99,199,245,.035), 0 0 0 1px rgba(0,0,0,.10);
+}
 
 .csf-label {
-  color: #687787;
-  font-size: 9px;
-  font-weight: 700;
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  left: 9px;
+  right: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #667585;
+  font-size: 8px;
+  font-weight: 780;
   line-height: 1;
-  padding-left: 1px;
   white-space: nowrap;
-}
-
-.csf-field select,
-.csf-field input {
-  height: 34px;
-  min-width: 0;
-  padding: 6px 28px 6px 9px;
-  border-color: #30404f;
-  background: #0c1218;
-  color: #d6e0e9;
-  font-size: 11px;
-  font-weight: 720;
-  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease, color .12s ease;
-}
-
-.csf-field input { padding-right: 9px; }
-
-.csf-field select:hover,
-.csf-field input:hover {
-  border-color: #425769;
-  background: #101820;
-}
-
-.csf-field select.is-active,
-.csf-field input.is-active {
-  border-color: rgba(99,199,245,.58);
-  background: rgba(99,199,245,.09);
-  color: #eefaff;
-  box-shadow: inset 0 0 0 1px rgba(99,199,245,.05);
+  pointer-events: none;
+  transition: color .12s ease;
 }
 
 .csf-field.is-active .csf-label { color: var(--accent); }
 
+.csf-field select,
+.csf-field input {
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 15px 27px 3px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #d5dfe8;
+  box-shadow: none;
+  outline: none;
+  font-size: 10.5px;
+  font-weight: 760;
+}
+
+.csf-field input {
+  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.csf-field select:focus,
+.csf-field input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.csf-field:focus-within {
+  border-color: #4caed7;
+  box-shadow: 0 0 0 2px rgba(99,199,245,.08);
+}
+
+.csf-field input::placeholder {
+  color: #536170;
+  font-size: 9px;
+}
+
 .csf-clear {
   flex: 0 0 auto;
-  height: 34px;
-  padding: 6px 10px;
-  border-color: #30404f;
+  align-self: center;
+  height: 32px;
+  padding: 6px 9px;
+  border: 1px solid #2b3946;
+  border-radius: 8px;
   background: transparent;
-  color: #8392a1;
-  font-size: 10px;
-  font-weight: 750;
+  color: #778696;
+  font-size: 9px;
+  font-weight: 780;
 }
 
 .csf-clear:hover {
+  border-color: #405264;
   background: #18212a;
   color: #dbe6ef;
   filter: none;
 }
 
 .category-specific-filters.has-active {
-  box-shadow: inset 3px 0 0 rgba(99,199,245,.5);
+  box-shadow:
+    inset 3px 0 0 rgba(99,199,245,.55),
+    inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+@media (max-width: 1120px) {
+  .csf-heading { flex-basis: 92px; }
+  .csf-field { flex-basis: 116px; min-width: 116px; }
+  .csf-field:has(input[type="number"]) { flex-basis: 126px; min-width: 126px; }
 }
 
 @media (max-width: 650px) {
   .category-specific-filters {
-    align-items: flex-end;
     gap: 8px;
-    padding: 8px 10px 9px;
+    padding: 7px 9px;
   }
 
-  .csf-heading strong { display: none; }
+  .csf-heading {
+    flex: 0 0 41px;
+    display: flex;
+    padding-right: 7px;
+  }
+
+  .csf-heading strong,
+  .csf-active-count { display: none; }
+
+  .csf-badge {
+    min-width: 34px;
+    padding-inline: 5px;
+  }
+
   .csf-controls { gap: 6px; }
-  .csf-field { min-width: 108px; }
-  .csf-field:has(input[type="number"]) { min-width: 120px; }
-  .csf-label { font-size: 8px; }
-  .csf-clear { padding-inline: 8px; }
+
+  .csf-field {
+    flex-basis: 112px;
+    min-width: 112px;
+    height: 40px;
+  }
+
+  .csf-field:has(input[type="number"]) {
+    flex-basis: 122px;
+    min-width: 122px;
+  }
+
+  .csf-field select,
+  .csf-field input { height: 38px; }
+
+  .csf-clear {
+    height: 30px;
+    padding-inline: 7px;
+  }
 }

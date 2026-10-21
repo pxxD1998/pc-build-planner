@@ -43,12 +43,28 @@ jobs:
           AUTOMATION_TOKEN: ${{ secrets.PC_BUILD_AUTOMATION_TOKEN }}
         shell: bash
         run: |
-          if [ -z "$AUTOMATION_TOKEN" ]; then
+          set -euo pipefail
+          # A missing OR expired token used to surface as three retries of
+          # "could not read Username" and a red run on every tick. Validate it
+          # against both repositories this job checks out, then skip with a
+          # notice instead of failing the job.
+          if [ -z "${AUTOMATION_TOKEN//[[:space:]]/}" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::PC_BUILD_AUTOMATION_TOKEN is not configured yet; automatic sync is intentionally skipped."
-          else
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::PC_BUILD_AUTOMATION_TOKEN is not configured; automatic sync is intentionally skipped."
+            exit 0
           fi
+          for repo in pxxD1998/pc-build-planner pxxD1998/_pxxD; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer ${AUTOMATION_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${repo}" || echo "000")"
+            if [ "$code" != "200" ]; then
+              echo "enabled=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::PC_BUILD_AUTOMATION_TOKEN was rejected for ${repo} (HTTP ${code}); rotate the secret. Sync skipped, nothing was published."
+              exit 0
+            fi
+          done
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: Checkout public deployment repository
         if: steps.auth.outputs.enabled == 'true'

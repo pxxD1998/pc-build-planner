@@ -9,8 +9,10 @@ on:
     paths:
       - ".github/workflows/auto-sync.yml"
   schedule:
-    # Hourly source sync. This does NOT fetch CoolPC.
-    - cron: "47 * * * *"
+    # Source sync every 6 hours. This does NOT fetch CoolPC.
+    # 2026-10-21: was hourly; the planner data does not change that fast and
+    # the hourly run was ~231 Actions minutes a month.
+    - cron: "47 */6 * * *"
     # Four catalog refreshes per day. Each refresh performs one CoolPC GET.
     - cron: "17 */6 * * *"
     # Monthly repository-activity heartbeat. Public-repo scheduled workflows can
